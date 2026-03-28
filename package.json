@@ -1,0 +1,24 @@
+{
+  "name": "orrery",
+  "version": "1.0.0",
+  "description": "Real-time Claude Code agent workflow topology visualizer",
+  "type": "module",
+  "scripts": {
+    "start": "node ws-server.js",
+    "dev": "node --watch ws-server.js",
+    "dashboard": "cd dashboard && npx vite"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "d3": "^7.8.5",
+    "@vitejs/plugin-react": "^4.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

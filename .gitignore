@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Session recordings (user-generated data)
+sessions/*.json
+!sessions/.gitkeep
+
+# Build output
+dashboard/dist/
+
+# Logs
+*.log
+/tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
