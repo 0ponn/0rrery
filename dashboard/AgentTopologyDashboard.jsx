@@ -17,6 +17,7 @@ import * as d3 from 'd3';
 import { useTopologySocket } from './useTopologySocket.js';
 import { TimelineView } from './TimelineView.jsx';
 import { MetricsView } from './MetricsView.jsx';
+import PlaybackView from './PlaybackView.jsx';
 
 // ─── CONFIG — edit these ──────────────────────────────────────────────────────
 
@@ -143,8 +144,8 @@ export function OrreryDashboard() {
   const [demoRunning,    setDemoRunning]   = useState(false);
   const [promptText,     setPromptText]    = useState('');
   const [promptDisplay,  setPromptDisplay] = useState('');
-  const [currentView,    setCurrentView]   = useState('graph'); // graph | timeline | metrics
-  const [simFrozen,      setSimFrozen]     = useState(false);
+  const [currentView,    setCurrentView]   = useState('graph'); // graph | timeline | metrics | playback
+  const [simFrozen,      setSimFrozen]     = useState(true);  // ← START FROZEN to prevent drift
   const [sessions,       setSessions]      = useState([]);
   const [playbackSession, setPlaybackSession] = useState(null);
   const [playbackState,  setPlaybackState] = useState('stopped'); // stopped | playing | paused
@@ -160,75 +161,23 @@ export function OrreryDashboard() {
   }, []);
 
   // ── Playback logic ────────────────────────────────────────────────────────
-  const loadSession = useCallback(async (sessionId) => {
-    try {
-      const response = await fetch(`http://localhost:4243/sessions/${sessionId}`);
-      const session = await response.json();
-      setPlaybackSession(session);
-      setPlaybackIndex(0);
-      setPlaybackState('stopped');
-
-      // Clear current topology
-      nodesRef.current = [];
-      linksRef.current = [];
-      ipcRef.current = [];
-      handoffsRef.current = [];
-      setEvents([]);
-
-      addLog(`Loaded session: ${sessionId} (${session.events.length} events)`, 'info');
-    } catch (err) {
-      console.error('Failed to load session:', err);
-      addLog(`Failed to load session: ${err.message}`, 'error');
-    }
-  }, []);
-
-  const playSession = useCallback(() => {
-    if (!playbackSession || playbackIndex >= playbackSession.events.length) {
-      setPlaybackState('stopped');
-      return;
-    }
-
-    setPlaybackState('playing');
-
-    const interval = 100 / playbackSpeed; // Base 100ms between events
-    const timer = setInterval(() => {
-      setPlaybackIndex(idx => {
-        if (idx >= playbackSession.events.length) {
-          setPlaybackState('stopped');
-          clearInterval(timer);
-          return idx;
-        }
-
-        const event = playbackSession.events[idx];
-        handleIncomingEvents([event]);
-        return idx + 1;
-      });
-    }, interval);
-
-    return () => clearInterval(timer);
-  }, [playbackSession, playbackIndex, playbackSpeed]);
-
-  const pauseSession = useCallback(() => {
-    setPlaybackState('paused');
-  }, []);
-
-  const resetSession = useCallback(() => {
-    setPlaybackState('stopped');
-    setPlaybackIndex(0);
-
-    // Clear topology
+  const loadSession = useCallback((session) => {
+    // Clear current topology
     nodesRef.current = [];
     linksRef.current = [];
     ipcRef.current = [];
     handoffsRef.current = [];
     setEvents([]);
+
+    // Replay all events from session
+    if (session && session.events) {
+      handleIncomingEvents(session.events);
+    }
+
+    addLog(`Loaded session with ${session?.events?.length || 0} events`, 'info');
   }, []);
 
-  useEffect(() => {
-    if (playbackState === 'playing') {
-      return playSession();
-    }
-  }, [playbackState, playSession]);
+  // Playback logic now handled by PlaybackView component
 
   // ── RAF loop — hardened per Gemini review ─────────────────────────────────
   const startRaf = useCallback(() => {
@@ -256,25 +205,19 @@ export function OrreryDashboard() {
     setEvents(prev => [{ id: Math.random(), msg, type, t }, ...prev].slice(0, 150));
   }, []);
 
-  const refreshSim = useCallback((alpha = 0.15) => {
+  const refreshSim = useCallback((alpha = 0.08) => {
     if (!simRef.current || simFrozen) return;
     simRef.current.nodes(nodesRef.current);
     simRef.current.force('link').links(linksRef.current);
-    simRef.current.alpha(Math.min(alpha, 0.15)).restart();  // ← REDUCED from 0.3 (gentler restart)
+    simRef.current.alpha(Math.min(alpha, 0.08)).restart();
 
-    // Auto-stop aggressively to prevent drift
-    const checkInterval = setInterval(() => {
-      if (simRef.current && simRef.current.alpha() < 0.02) {  // ← More aggressive threshold
-        simRef.current.stop();
-        clearInterval(checkInterval);
-      }
-    }, 500);  // ← Check every 500ms instead of one-time 3s delay
-
-    // Force stop after 2 seconds regardless
+    // Aggressive auto-stop: 500ms max
     setTimeout(() => {
-      clearInterval(checkInterval);
-      if (simRef.current) simRef.current.stop();
-    }, 2000);  // ← REDUCED from 3000ms
+      if (simRef.current) {
+        simRef.current.stop();
+        setSimFrozen(true);  // Auto-freeze to prevent drift
+      }
+    }, 500);
   }, [simFrozen]);
 
   // ── Core event router — processes batches from WebSocket or demo ──────────
@@ -477,14 +420,22 @@ export function OrreryDashboard() {
       .force('center', d3.forceCenter(W/2, H/2).strength(0.05))
       .force('collide', d3.forceCollide().radius(d => (NSTYLE[d.type]?.r ?? 14) + 24))
       .force('y', d3.forceY(H/2).strength(0.05))
-      .alphaDecay(0.15)       // ← INCREASED from 0.05 (faster settling)
-      .alphaMin(0.01)         // ← INCREASED from 0.001 (stops sooner)
-      .velocityDecay(0.7)     // ← INCREASED from 0.4 (more friction, less drift)
+      .alphaDecay(0.3)        // ← AGGRESSIVE: Stop in ~10 ticks
+      .alphaMin(0.05)         // ← Stop early
+      .velocityDecay(0.9)     // ← MAXIMUM friction
       .on('tick', () => setTick(k => k + 1))
       .on('end', () => {
-        // Stop simulation completely when settled
         simRef.current.stop();
+        setSimFrozen(true);   // ← Auto-freeze when done
       });
+
+    // Force stop after 1 second to prevent any drift
+    setTimeout(() => {
+      if (simRef.current) {
+        simRef.current.stop();
+        setSimFrozen(true);
+      }
+    }, 1000);
 
     // Add zoom/pan behavior to SVG
     if (svgRef.current) {
@@ -664,7 +615,7 @@ export function OrreryDashboard() {
           <div style={{ display:'flex', alignItems:'center', gap:16 }}>
             {/* View switcher */}
             <div style={{ display:'flex', gap:4, background:C.dim, borderRadius:4, padding:3 }}>
-              {['graph', 'timeline', 'metrics'].map(view => (
+              {['graph', 'timeline', 'metrics', 'playback'].map(view => (
                 <button
                   key={view}
                   onClick={() => setCurrentView(view)}
@@ -719,6 +670,12 @@ export function OrreryDashboard() {
           {currentView === 'metrics' && (
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <MetricsView events={rawEvents} permissions={permissions} metrics={metrics} />
+            </div>
+          )}
+
+          {currentView === 'playback' && (
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <PlaybackView onLoadSession={loadSession} C={C} />
             </div>
           )}
 
