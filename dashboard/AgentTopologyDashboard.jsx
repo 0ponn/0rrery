@@ -225,72 +225,38 @@ export function OrreryDashboard() {
     const processEvent = (payload) => {
       const { type, id, sessionId = 'default' } = payload;
 
-      // Store raw event for timeline/metrics (with all metadata)
+      // Store raw event for timeline/metrics
       setRawEvents(prev => [...prev, { ...payload, timestamp: payload.timestamp || now }].slice(-500));
 
-      // Track active sessions and create session-specific orchestrator
+      // Track sessions (no auto-orchestrator - agents are top-level)
       if (!sessionsRef.current.has(sessionId)) {
-        const orchId = `orch-${sessionId}`;
-        const orchNode = {
-          id: orchId,
-          type: 'orchestrator',
-          label: `Orchestrator (${sessionId})`,
-          sessionId,
-          x: W/2 + (sessionsRef.current.size * 80),
-          y: H/2,
-          fx: W/2 + (sessionsRef.current.size * 80),
-          fy: H/2,
-          lastActive: now,
-          completed: false,
-        };
-
         sessionsRef.current.set(sessionId, {
           id: sessionId,
-          orchestratorId: orchId,
           startTime: now,
           lastActivity: now,
         });
-
-        // Add orchestrator node for this session
-        nodesRef.current.push(orchNode);
-        needsRefresh = true;
-
         setActiveSessions(Array.from(sessionsRef.current.keys()));
         if (!currentSession) setCurrentSession(sessionId);
-
-        addLog(`◉ New session: ${sessionId}`, 'system');
-        flash(orchId, 1200);
+        addLog(`◉ Session: ${sessionId}`, 'system');
       } else {
-        const session = sessionsRef.current.get(sessionId);
-        session.lastActivity = now;
+        sessionsRef.current.get(sessionId).lastActivity = now;
       }
 
-      // Filter events by current session (if multi-session mode is active)
-      if (currentSession && sessionId !== currentSession && activeSessions.length > 1) {
-        return; // Skip events from other sessions
-      }
-
-      // Orphan queue — hold events whose parent hasn't arrived yet
-      // BUT: if parentId is generic 'orch', don't orphan - we'll map it to session orchestrator
-      const isGenericOrch = payload.parentId === 'orch';
-      if (payload.parentId && !isGenericOrch && !nodesRef.current.some(n => n.id === payload.parentId)) {
+      // Orphan queue - hold events whose parent hasn't arrived yet
+      // Skip orphaning if parentId is null (top-level agent)
+      if (payload.parentId && !nodesRef.current.some(n => n.id === payload.parentId)) {
         orphanQueueRef.current.set(id ?? Math.random(), payload);
         return;
       }
 
-      // ── Spawn node types ─────────────────────────────────────────────────
+      // ── Create nodes for spawn-type events ──────────────────────────────
       if (TYPE_MAP[type]) {
         const nodeType = TYPE_MAP[type];
         const existing = nodesRef.current.find(n => n.id === id);
         if (existing) { existing.lastActive = now; return; }
 
-        // Get session orchestrator ID
-        const session = sessionsRef.current.get(sessionId);
-        const orchId = session?.orchestratorId || 'orch';
-
-        // Use session orchestrator if no explicit parent provided
-        // Map generic 'orch' to session-specific orchestrator
-        const parentId = (!payload.parentId || payload.parentId === 'orch') ? orchId : payload.parentId;
+        // parentId from event, or null for top-level agents
+        const parentId = payload.parentId || null;
 
         nodesRef.current.push({
           id, type: nodeType,
