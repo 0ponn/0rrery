@@ -205,19 +205,16 @@ export function OrreryDashboard() {
     setEvents(prev => [{ id: Math.random(), msg, type, t }, ...prev].slice(0, 150));
   }, []);
 
-  const refreshSim = useCallback((alpha = 0.08) => {
+  const refreshSim = useCallback((alpha = 0.05) => {
     if (!simRef.current || simFrozen) return;
     simRef.current.nodes(nodesRef.current);
     simRef.current.force('link').links(linksRef.current);
-    simRef.current.alpha(Math.min(alpha, 0.08)).restart();
+    simRef.current.alpha(Math.min(alpha, 0.05)).restart();
 
-    // Aggressive auto-stop: 500ms max
+    // IMMEDIATE stop after 200ms - just enough to position new nodes
     setTimeout(() => {
-      if (simRef.current) {
-        simRef.current.stop();
-        setSimFrozen(true);  // Auto-freeze to prevent drift
-      }
-    }, 500);
+      if (simRef.current) simRef.current.stop();
+    }, 200);
   }, [simFrozen]);
 
   // ── Core event router — processes batches from WebSocket or demo ──────────
@@ -406,7 +403,7 @@ export function OrreryDashboard() {
     }
 
     // Single D3 restart per batch — not per event
-    if (needsRefresh) refreshSim(0.3);
+    if (needsRefresh) refreshSim(0.05);
   }, [flash, addLog, startRaf, refreshSim]);
 
   // ── Initialize D3 simulation ──────────────────────────────────────────────
@@ -419,26 +416,14 @@ export function OrreryDashboard() {
 
     simRef.current = d3.forceSimulation(nodesRef.current)
       .force('link', d3.forceLink(linksRef.current).id(d => d.id).distance(100).strength(0.5))
-      .force('charge', d3.forceManyBody().strength(-280))
-      .force('center', d3.forceCenter(W/2, H/2).strength(0.05))
-      .force('collide', d3.forceCollide().radius(d => (NSTYLE[d.type]?.r ?? 14) + 24))
-      .force('y', d3.forceY(H/2).strength(0.05))
-      .alphaDecay(0.3)        // ← AGGRESSIVE: Stop in ~10 ticks
-      .alphaMin(0.05)         // ← Stop early
-      .velocityDecay(0.9)     // ← MAXIMUM friction
+      .force('charge', d3.forceManyBody().strength(-200))
+      .force('center', d3.forceCenter(W/2, H/2).strength(0.02))
+      .force('collide', d3.forceCollide().radius(d => (NSTYLE[d.type]?.r ?? 14) + 20))
+      .alphaDecay(0.5)        // ← VERY AGGRESSIVE: Stop in ~5 ticks
+      .alphaMin(0.1)          // ← Stop very early
+      .velocityDecay(0.95)    // ← EXTREME friction
       .on('tick', () => setTick(k => k + 1))
-      .on('end', () => {
-        simRef.current.stop();
-        setSimFrozen(true);   // ← Auto-freeze when done
-      });
-
-    // Force stop after 1 second to prevent any drift
-    setTimeout(() => {
-      if (simRef.current) {
-        simRef.current.stop();
-        setSimFrozen(true);
-      }
-    }, 1000);
+      .stop();  // ← STOP IMMEDIATELY - don't auto-run
 
     // Add zoom/pan behavior to SVG
     if (svgRef.current) {
@@ -515,7 +500,7 @@ export function OrreryDashboard() {
     linksRef.current    = [];
     ipcRef.current      = [];
     handoffsRef.current = [];
-    refreshSim(0.9);
+    refreshSim(0.05);
 
     setTick(0);
     setEvents([]);
