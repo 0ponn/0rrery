@@ -274,7 +274,9 @@ export function OrreryDashboard() {
       }
 
       // Orphan queue — hold events whose parent hasn't arrived yet
-      if (payload.parentId && !nodesRef.current.some(n => n.id === payload.parentId)) {
+      // BUT: if parentId is generic 'orch', don't orphan - we'll map it to session orchestrator
+      const isGenericOrch = payload.parentId === 'orch';
+      if (payload.parentId && !isGenericOrch && !nodesRef.current.some(n => n.id === payload.parentId)) {
         orphanQueueRef.current.set(id ?? Math.random(), payload);
         return;
       }
@@ -290,7 +292,8 @@ export function OrreryDashboard() {
         const orchId = session?.orchestratorId || 'orch';
 
         // Use session orchestrator if no explicit parent provided
-        const parentId = payload.parentId || orchId;
+        // Map generic 'orch' to session-specific orchestrator
+        const parentId = (!payload.parentId || payload.parentId === 'orch') ? orchId : payload.parentId;
 
         nodesRef.current.push({
           id, type: nodeType,
