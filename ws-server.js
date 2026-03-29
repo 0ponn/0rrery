@@ -35,11 +35,20 @@ const publishers  = new Set(); // MCP processes
 
 let eventCount = 0;
 
-// Create WebSocket server - bind to all interfaces
-const wss = new WebSocketServer({
-  port: PORT,
-  host: '0.0.0.0',  // Explicit bind to all interfaces
+// Create HTTP server first for proper upgrade handling
+const httpServerForWs = createServer((req, res) => {
+  // Handle HTTP requests with CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.writeHead(426, { 'Content-Type': 'text/plain' });
+  res.end('Upgrade Required');
 });
+
+httpServerForWs.listen(PORT, '0.0.0.0', () => {
+  console.log(`[ws-server] Listening on ws://localhost:${PORT}`);
+});
+
+// Create WebSocket server attached to HTTP server
+const wss = new WebSocketServer({ server: httpServerForWs });
 
 // ── Broadcast to all dashboard subscribers ────────────────────────────────────
 
@@ -232,6 +241,5 @@ setInterval(() => {
   }
 }, 30_000);
 
-console.log(`[ws-server] Listening on ws://localhost:${PORT}`);
 console.log(`  Publishers  →  ws://localhost:${PORT}?role=publisher`);
 console.log(`  Subscribers →  ws://localhost:${PORT}?role=subscriber`);
