@@ -35,8 +35,11 @@ const publishers  = new Set(); // MCP processes
 
 let eventCount = 0;
 
-// Create WebSocket server
-const wss = new WebSocketServer({ port: PORT });
+// Create WebSocket server - bind to all interfaces
+const wss = new WebSocketServer({
+  port: PORT,
+  host: '0.0.0.0',  // Explicit bind to all interfaces
+});
 
 // ── Broadcast to all dashboard subscribers ────────────────────────────────────
 
