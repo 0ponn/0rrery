@@ -6,12 +6,5 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
-    proxy: {
-      '/ws': {
-        target: 'ws://localhost:4242',
-        ws: true,
-        rewriteWsOrigin: true,
-      },
-    },
   },
 });

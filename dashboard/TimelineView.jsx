@@ -6,25 +6,7 @@
 
 import { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
-
-const C = {
-  bg: '#1a1d23', panel: '#21252b', border: '#3e4451',
-  teal: '#56b6c2', amber: '#d19a66', purple: '#c678dd',
-  green: '#98c379', red: '#e06c75', blue: '#61afef',
-  magenta: '#c678dd', yellow: '#e5c07b', coral: '#e06c75',
-  white: '#abb2bf', dim: '#282c34', dimText: '#5c6370',
-};
-
-const TYPE_COLORS = {
-  agent_spawn: C.blue,
-  model_call: C.purple,
-  file_access: C.amber,
-  mcp_call: C.green,
-  api_call: C.coral,
-  permission_request: C.yellow,
-  ipc_message: C.magenta,
-  handoff: C.teal,
-};
+import { C, TYPE_COLORS } from './theme.js';
 
 export function TimelineView({ events, nodes, width = 900, height = 500 }) {
   const svgRef = useRef(null);

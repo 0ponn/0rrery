@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node ws-server.js",
     "dev": "node --watch ws-server.js",
-    "dashboard": "cd dashboard && npx vite"
+    "dashboard": "cd dashboard && npx vite",
+    "build": "cd dashboard && npm run build",
+    "serve": "node ws-server.js & cd dashboard && npx vite preview",
+    "install:all": "npm install && cd dashboard && npm install"
   },
   "dependencies": {
     "ws": "^8.18.0"
@@ -17,6 +20,9 @@
     "react-dom": "^18.2.0",
     "d3": "^7.8.5",
     "@vitejs/plugin-react": "^4.2.0"
+  },
+  "bin": {
+    "orrery-emit": "./bin/orrery-emit.js"
   },
   "engines": {
     "node": ">=18.0.0"

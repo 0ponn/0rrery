@@ -98,16 +98,7 @@ async function announceIfNeeded() {
 function buildToolEvent(toolName, toolInput) {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
-  // Determine event type and label
-  if (toolName === 'Task') {
-    return {
-      type: 'agent_spawn',
-      id: `subagent-${id}`,
-      parentId: SESSION.agentId,
-      label: toolInput?.description || 'Sub-agent'
-    };
-  }
-
+  // Actual MCP tool calls (mcp__server__method)
   if (toolName.startsWith('mcp__')) {
     const parts = toolName.split('__');
     const server = parts[1];
@@ -120,35 +111,45 @@ function buildToolEvent(toolName, toolInput) {
     };
   }
 
+  // Bash — categorize by what the command actually does
   if (toolName === 'Bash') {
     const cmd = (toolInput?.command || '').split(/\s+/)[0];
-    return {
-      type: 'mcp_call',
-      id,
-      parentId: SESSION.agentId,
-      label: `bash:${cmd}`
-    };
+    // Network/API commands
+    const apiCmds = ['curl', 'wget', 'http', 'gh', 'ssh', 'scp', 'rsync'];
+    // Build/run commands
+    const execCmds = ['npm', 'npx', 'node', 'python', 'python3', 'cargo', 'go', 'make', 'docker', 'git'];
+    const type = apiCmds.includes(cmd) ? 'api_call' : 'file_access';
+    return { type, id, parentId: SESSION.agentId, label: `bash:${cmd}` };
   }
 
   // File operations
   if (['Read', 'Write', 'Edit', 'Glob', 'Grep'].includes(toolName)) {
     const target = toolInput?.file_path || toolInput?.path || toolInput?.pattern || '';
     const short = target.split('/').slice(-2).join('/');
-    return {
-      type: 'mcp_call',
-      id,
-      parentId: SESSION.agentId,
-      label: `${toolName.toLowerCase()}:${short}`
-    };
+    return { type: 'file_access', id, parentId: SESSION.agentId, label: `${toolName.toLowerCase()}:${short}` };
   }
 
-  // Default
-  return {
-    type: 'mcp_call',
-    id,
-    parentId: SESSION.agentId,
-    label: toolName
-  };
+  // Web/API tools
+  if (['WebFetch', 'WebSearch'].includes(toolName)) {
+    const target = toolInput?.url || toolInput?.query || '';
+    return { type: 'api_call', id, parentId: SESSION.agentId, label: `${toolName.toLowerCase()}:${target.slice(0, 40)}` };
+  }
+
+  // Agent/Task spawning
+  if (toolName === 'Agent') {
+    return { type: 'agent_spawn', id: `agent-${id}`, parentId: SESSION.agentId, label: toolInput?.description || toolInput?.prompt?.slice(0, 40) || 'Sub-agent' };
+  }
+  if (toolName === 'Task' || toolName === 'TaskCreate') {
+    return { type: 'agent_spawn', id: `subagent-${id}`, parentId: SESSION.agentId, label: toolInput?.description || toolInput?.subject || 'Sub-agent' };
+  }
+
+  // LSP
+  if (toolName === 'LSP') {
+    return { type: 'mcp_call', id, parentId: SESSION.agentId, label: `lsp:${toolInput?.operation || 'query'}` };
+  }
+
+  // Default — anything not matched is a tool call
+  return { type: 'mcp_call', id, parentId: SESSION.agentId, label: toolName };
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
