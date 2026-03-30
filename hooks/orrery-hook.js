@@ -84,7 +84,12 @@ async function announceIfNeeded() {
     type: 'agent_spawn',
     id: SESSION.agentId,
     parentId: null,  // Top-level agent, no parent
-    label: `Claude (${PPID})`
+    label: `Claude (${PPID})`,
+    metadata: {
+      agentType: 'claude',
+      pid: PPID,
+      hostname: os.hostname(),
+    }
   });
 
   SESSION.announced = true;

@@ -122,14 +122,25 @@ wss.on('connection', (ws, req) => {
         recentEventTimestamps.push(Date.now());
 
         // Track agents from spawn/done events
-        if (payload.type === 'agent_spawn' && payload.metadata?.agentType) {
+        if (payload.type === 'agent_spawn') {
           const agentId = payload.id || `agent-${Date.now()}`;
           const existing = activeAgents.get(agentId);
+          // Extract agentType from metadata, label, or id
+          let agentType = payload.metadata?.agentType;
+          if (!agentType && payload.label) {
+            // Extract from label like "Claude (12345)" or "Gemini Worker"
+            const match = payload.label.match(/^(claude|gemini|codex|cursor|detector)/i);
+            agentType = match ? match[1].toLowerCase() : 'unknown';
+          }
+          if (!agentType && agentId) {
+            const idMatch = agentId.match(/(claude|gemini|codex|cursor|detector)/i);
+            agentType = idMatch ? idMatch[1].toLowerCase() : 'unknown';
+          }
           activeAgents.set(agentId, {
             id: agentId,
             label: payload.label || agentId,
-            agentType: payload.metadata.agentType,
-            pid: payload.metadata.pid || null,
+            agentType: agentType || 'unknown',
+            pid: payload.metadata?.pid || null,
             firstSeen: existing?.firstSeen || Date.now(),
             lastSeen: Date.now(),
             status: 'active',

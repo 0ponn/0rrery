@@ -10,7 +10,7 @@
 
 import { useRef, useEffect, useState, useMemo } from 'react';
 import * as d3 from 'd3';
-import { C, AGENT_COLORS, EVTCOL, TYPE_COLORS } from './theme.js';
+import { C, AGENT_COLORS, EVTCOL, TYPE_COLORS, getAgentColor } from './theme.js';
 
 const AGENT_ICONS = {
   claude: '\u25C8', gemini: '\u25C9', codex: '\u25A3',
@@ -86,7 +86,7 @@ export function TopologyView({ agents, events, sessions }) {
     const types = [...typeGroups.keys()];
     types.forEach((type, i) => {
       const groupId = `group-${type}`;
-      const color = AGENT_COLORS[type] || AGENT_COLORS.unknown;
+      const color = getAgentColor(type);
       const agentsOfType = typeGroups.get(type);
 
       // Group node
@@ -137,17 +137,19 @@ export function TopologyView({ agents, events, sessions }) {
           .strength(d => d.type === 'hub' ? -600 : d.type === 'group' ? -300 : -150))
         .force('center', d3.forceCenter(cx, cy).strength(0.1))
         .force('collide', d3.forceCollide().radius(d => d.r + 20))
-        .alphaDecay(0.15)
-        .velocityDecay(0.7)
+        .alphaDecay(0.35)
+        .velocityDecay(0.85)
         .on('tick', () => setTick(t => t + 1));
-      // Stop after initial layout
-      setTimeout(() => simRef.current?.stop(), 800);
+      // Stop quickly after initial layout to prevent drift
+      simRef.current.stop();
+      simRef.current.alpha(0.5).restart();
+      setTimeout(() => simRef.current?.stop(), 400);
     } else {
       simRef.current.nodes(nodes);
       simRef.current.force('link').links(links);
       simRef.current.force('center', d3.forceCenter(cx, cy).strength(0.1));
-      simRef.current.alpha(0.3).restart();
-      setTimeout(() => simRef.current?.stop(), 500);
+      simRef.current.alpha(0.2).restart();
+      setTimeout(() => simRef.current?.stop(), 300);
     }
   }, [agents, activityMap]);
 

@@ -50,13 +50,26 @@ export const EVTCOL = {
   ipc: C.magenta, handoff: C.teal, system: C.teal, agent_done: C.dimText,
 };
 
+// Base colors for known agents, plus a palette for dynamic agent types
 export const AGENT_COLORS = {
   claude: '#c678dd',  // purple
   gemini: '#61afef',  // blue
   codex: '#98c379',   // green
   cursor: '#56b6c2',  // teal
+  detector: '#e5c07b', // yellow
   unknown: '#abb2bf', // white
 };
+
+// Generate a deterministic color for unknown agent types
+const DYNAMIC_PALETTE = ['#e06c75', '#d19a66', '#61afef', '#c678dd', '#98c379', '#56b6c2', '#e5c07b'];
+export function getAgentColor(agentType) {
+  if (!agentType) return AGENT_COLORS.unknown;
+  const type = agentType.toLowerCase();
+  if (AGENT_COLORS[type]) return AGENT_COLORS[type];
+  // Hash the type name to get a consistent color
+  const hash = type.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return DYNAMIC_PALETTE[hash % DYNAMIC_PALETTE.length];
+}
 
 // TYPE_COLORS used by TimelineView and MetricsView (superset of EVTCOL event types)
 export const TYPE_COLORS = {

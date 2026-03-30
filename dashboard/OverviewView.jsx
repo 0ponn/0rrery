@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from 'react';
-import { C, AGENT_COLORS, EVTCOL } from './theme.js';
+import { C, AGENT_COLORS, EVTCOL, getAgentColor } from './theme.js';
 
 const EVTICON = {
   agent_spawn: '\u25C8', model_call: '\u25C9', file_access: '\u25A3',
@@ -134,8 +134,8 @@ function Panel({ title, children }) {
 
 function AgentRow({ agent, onClickSession }) {
   const now = Date.now();
-  const agentType = (agent.agentType || 'unknown').toLowerCase();
-  const color = AGENT_COLORS[agentType] || AGENT_COLORS.unknown;
+  const agentType = agent.agentType || 'unknown';
+  const color = getAgentColor(agentType);
   const isActive = agent.status === 'active';
 
   return (
