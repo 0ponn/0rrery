@@ -20,7 +20,7 @@ test('fixture transcript → import → query shows full trace', async () => {
 
   const detail = await (await fetch(`${srv.url}/api/sessions/fix1`)).json()
   const kinds = detail.spans.map((s: any) => s.kind).sort()
-  expect(kinds).toEqual(['llm', 'tool'])
-  expect(detail.events.map((e: any) => e.type).sort()).toEqual(['message.assistant', 'message.user'])
+  expect(kinds).toEqual(['agent', 'llm', 'llm', 'tool', 'tool'])
+  expect(detail.events.map((e: any) => e.type).sort()).toEqual(['message.assistant', 'message.user', 'session.compact', 'session.compact_summary'])
   srv.stop()
 })
