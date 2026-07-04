@@ -16,10 +16,10 @@ export function permissionStatus(events: EventRow[], spans: SpanRow[]): Map<stri
 export function eventDetail(attrs: string): string {
   let a: Record<string, unknown>
   try { a = JSON.parse(attrs) } catch { return '' }
-  if (typeof a.preview === 'string') return a.preview
+  if (typeof a.preview === 'string' && a.preview) return a.preview
   if (typeof a.message === 'string' && a.message) return a.message
   if (typeof a.reason === 'string' && a.reason) return `${a.tool ?? ''}: ${a.reason}`
-  if (typeof a.outcome === 'string') return `${a.tool ?? ''}: ${a.outcome}`
-  if (typeof a.trigger === 'string') return `${a.trigger} compact at ${a.preTokens ?? '?'} tokens`
+  if (typeof a.outcome === 'string' && a.outcome) return `${a.tool ?? ''}: ${a.outcome}`
+  if (typeof a.trigger === 'string' && a.trigger) return `${a.trigger} compact at ${a.preTokens ?? '?'} tokens`
   return ''
 }

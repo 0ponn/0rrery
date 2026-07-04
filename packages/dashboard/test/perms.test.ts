@@ -30,3 +30,9 @@ test('eventDetail renders each attr shape', () => {
   expect(eventDetail(JSON.stringify({ trigger: 'auto', preTokens: 150000 }))).toBe('auto compact at 150000 tokens')
   expect(eventDetail('garbage')).toBe('')
 })
+
+test('empty strings fall through the detail chain', () => {
+  expect(eventDetail(JSON.stringify({ preview: '', message: 'note' }))).toBe('note')
+  expect(eventDetail(JSON.stringify({ outcome: '', trigger: 'auto', preTokens: 5 }))).toBe('auto compact at 5 tokens')
+  expect(eventDetail(JSON.stringify({ preview: '' }))).toBe('')
+})
