@@ -32,7 +32,7 @@ export async function importTranscript(
   if (finalize && ops.length > 0) {
     const sessionId = (ops.find(o => 'sessionId' in o) as { sessionId: string } | undefined)?.sessionId
     if (sessionId) {
-      const maxTs = Math.max(...ops.map(o => o.ts))
+      const maxTs = ops.reduce((max, o) => (o.ts > max ? o.ts : max), 0)
       ops.push({ op: 'session.end', sessionId, ts: maxTs } satisfies IngestOp)
     }
   }

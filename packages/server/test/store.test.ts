@@ -89,6 +89,20 @@ test('session.start after session.end resurrects status to active', () => {
   store.close()
 })
 
+test('stale session.start replay does not resurrect an ended session', () => {
+  const store = new Store(':memory:')
+  store.applyOps([
+    { op: 'session.start', sessionId: 's1', source: 'claude-code', ts: 100 },
+    { op: 'session.end', sessionId: 's1', ts: 500 },
+  ])
+  store.applyOps([{ op: 'session.start', sessionId: 's1', source: 'claude-code', ts: 100 }])
+  expect((store.db.query("SELECT status FROM sessions WHERE id='s1'").get() as any).status).toBe('ended')
+  // a genuine resume (newer ts) does resurrect
+  store.applyOps([{ op: 'session.start', sessionId: 's1', source: 'claude-code', ts: 600 }])
+  expect((store.db.query("SELECT status FROM sessions WHERE id='s1'").get() as any).status).toBe('active')
+  store.close()
+})
+
 test('sweep deletes sessions idle past retention, cascading children', () => {
   const store = freshApplied()
   const deleted = store.sweep(30, 200 + 31 * 86400_000)
