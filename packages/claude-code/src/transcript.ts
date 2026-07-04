@@ -14,6 +14,7 @@ export function newTranscriptState(): TranscriptState {
 type Line = {
   type?: string; sessionId?: string; cwd?: string; gitBranch?: string; timestamp?: string
   uuid?: string; isSidechain?: boolean; agentId?: string; attributionAgent?: string
+  subtype?: string; compactMetadata?: Record<string, unknown>; isCompactSummary?: boolean
   message?: { id?: string; model?: string; role?: string; content?: unknown; usage?: Record<string, number> }
 }
 
@@ -52,9 +53,24 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
 
   if (line.type === 'user' && typeof line.message?.content === 'string') {
     ops.push({
-      op: 'event', id: `evt:msg:${line.uuid}`, sessionId: sid, type: 'message.user', ts,
+      op: 'event', id: `evt:msg:${line.uuid}`, sessionId: sid,
+      type: line.isCompactSummary ? 'session.compact_summary' : 'message.user', ts,
       attrs: { preview: line.message.content.slice(0, 200), ...side, ...agentAttr },
     })
+  }
+
+  if (line.type === 'user' && Array.isArray(line.message?.content)) {
+    for (const block of line.message.content as any[]) {
+      if (block?.type !== 'tool_result' || !block.tool_use_id) continue
+      const text = typeof block.content === 'string' ? block.content : JSON.stringify(block.content ?? '')
+      const m = text.match(/agentId: (a[0-9a-f]{6,})/)
+      if (m) {
+        ops.push({
+          op: 'span.start', id: `agent:${m[1]}`, sessionId: sid, parentId: `tool:${block.tool_use_id}`,
+          kind: 'agent', name: '(unknown)', ts, attrs: {},
+        })
+      }
+    }
   }
 
   if (line.type === 'assistant' && line.message?.id) {
@@ -83,6 +99,14 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
           attrs: { preview: block.text.slice(0, 200), ...side, ...agentAttr },
         })
       }
+    })
+  }
+
+  if (line.type === 'system' && line.subtype === 'compact_boundary') {
+    const md = (line.compactMetadata ?? {}) as Record<string, unknown>
+    ops.push({
+      op: 'event', id: `evt:compact:${line.uuid}`, sessionId: sid, type: 'session.compact', ts,
+      attrs: { trigger: md.trigger ?? '', preTokens: md.preTokens ?? 0, durationMs: md.durationMs ?? 0 },
     })
   }
 

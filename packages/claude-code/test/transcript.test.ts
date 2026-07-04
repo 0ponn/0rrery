@@ -60,3 +60,25 @@ test('agent file: agent span, parenting, no session.start, attributed events', (
   expect(starts[0].ts).toBe(Date.parse('2026-07-04T12:00:03.000Z'))
   expect(starts[1]).toMatchObject({ name: 'general-purpose', ts: Date.parse('2026-07-04T12:00:03.000Z') })
 })
+
+test('Agent tool_result links the agent span under the spawning tool span', () => {
+  const state = newTranscriptState()
+  const ops = lines.flatMap(l => parseTranscriptLine(l, state))
+  const link = ops.find(o => o.op === 'span.start' && (o as any).id === 'agent:a1b2c3d4e5') as any
+  expect(link).toMatchObject({ parentId: 'tool:toolu_ag1', kind: 'agent', name: '(unknown)', sessionId: 'fix1' })
+})
+
+test('compact_boundary → session.compact with metadata', () => {
+  const state = newTranscriptState()
+  const ops = lines.flatMap(l => parseTranscriptLine(l, state))
+  const c = ops.find(o => o.op === 'event' && (o as any).type === 'session.compact') as any
+  expect(c).toMatchObject({ id: 'evt:compact:u6', attrs: { trigger: 'auto', preTokens: 150000, durationMs: 21000 } })
+})
+
+test('isCompactSummary suppresses message.user and emits session.compact_summary', () => {
+  const state = newTranscriptState()
+  const ops = lines.flatMap(l => parseTranscriptLine(l, state))
+  expect(ops.filter(o => o.op === 'event' && (o as any).type === 'message.user')).toHaveLength(1)  // still just 'list the files'
+  const s = ops.find(o => o.op === 'event' && (o as any).type === 'session.compact_summary') as any
+  expect(s.attrs.preview).toContain('continued from a previous conversation')
+})
