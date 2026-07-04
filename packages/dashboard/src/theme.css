@@ -23,3 +23,21 @@ td a { color: var(--accent); text-decoration: none; }
 .empty, .error { color: var(--dim); padding: 18px 10px; }
 .error { color: var(--err); }
 select { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; }
+.tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.tabs button { background: var(--panel); color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 4px 12px; cursor: pointer; }
+.tabs button.active { color: var(--fg); border-color: var(--accent); }
+.waterfall { border: 1px solid var(--line); border-radius: 6px; }
+.wf-row { display: grid; grid-template-columns: 320px 1fr 90px; align-items: center; gap: 10px; padding: 5px 10px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.wf-row:hover { background: var(--panel); }
+.wf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kind { font-size: 10px; padding: 0 5px; border-radius: 3px; margin-right: 4px; background: var(--line); color: var(--dim); }
+.kind-llm { color: var(--accent); } .kind-agent { color: var(--ok); } .kind-tool { color: var(--run); }
+.wf-track { position: relative; height: 14px; background: var(--panel); border-radius: 3px; overflow: hidden; }
+.wf-bar { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; background: var(--accent); min-width: 2px; }
+.wf-bar.st-error { background: var(--err); }
+.wf-bar.st-running { background: var(--run); }
+.wf-dur { text-align: right; color: var(--dim); }
+.attrs { background: var(--panel); padding: 10px 14px; font-size: 11px; overflow-x: auto; border-bottom: 1px solid var(--line); }
+.attrs-cell { color: var(--dim); max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rollup { display: flex; gap: 14px; color: var(--dim); align-items: baseline; }
+h1 a { color: var(--dim); text-decoration: none; }

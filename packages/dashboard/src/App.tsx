@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SessionsView } from './views/SessionsView'
+import { SessionDetailView } from './views/SessionDetailView'
 
 function useHashRoute(): string {
   const [hash, setHash] = useState(location.hash || '#/')
@@ -16,7 +17,7 @@ export function App() {
   const sessionMatch = hash.match(/^#\/session\/(.+)$/)
 
   let view = <SessionsView />
-  // Task 13 adds: if (sessionMatch) view = <SessionDetailView id={decodeURIComponent(sessionMatch[1])} />
+  if (sessionMatch) view = <SessionDetailView id={decodeURIComponent(sessionMatch[1])} />
   // Task 14 adds: if (hash === '#/live') view = <LiveView />
 
   return (
