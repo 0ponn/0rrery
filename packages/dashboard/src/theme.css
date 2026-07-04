@@ -48,3 +48,7 @@ h1 a { color: var(--dim); text-decoration: none; }
 .feed-row { display: grid; grid-template-columns: 80px 90px 1fr; gap: 10px; padding: 4px 10px; border-bottom: 1px solid var(--line); }
 .feed-ts, .feed-sid { color: var(--dim); }
 .pause { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+.perm-badge { font-size: 10px; padding: 0 6px; border-radius: 8px; margin-left: 6px; }
+.perm-badge.allowed { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
+.perm-badge.denied { background: color-mix(in srgb, var(--err) 20%, transparent); color: var(--err); }
+.perm-badge.pending { background: color-mix(in srgb, var(--run) 20%, transparent); color: var(--run); }
