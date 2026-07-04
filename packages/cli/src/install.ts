@@ -7,7 +7,14 @@ const NEEDS_MATCHER = new Set(['PreToolUse', 'PostToolUse'])
 export function installHooks(claudeDir: string, hookCommand: string): { settingsPath: string; added: string[] } {
   mkdirSync(claudeDir, { recursive: true })
   const settingsPath = join(claudeDir, 'settings.json')
-  const settings = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, 'utf8')) : {}
+  let settings: any = {}
+  if (existsSync(settingsPath)) {
+    try {
+      settings = JSON.parse(readFileSync(settingsPath, 'utf8'))
+    } catch {
+      throw new Error(`0rrery install: ${settingsPath} is not valid JSON — fix or remove it, then re-run`)
+    }
+  }
   settings.hooks ??= {}
   const added: string[] = []
   for (const event of HOOK_EVENTS) {

@@ -22,13 +22,24 @@ switch (cmd) {
   case 'install': {
     const hookPath = resolve(import.meta.dir, '../../claude-code/src/hook.ts')
     const claudeDir = process.env.ORRERY_CLAUDE_DIR ?? join(homedir(), '.claude')
-    const { settingsPath, added } = installHooks(claudeDir, `bun ${hookPath}`)
-    console.log(added.length ? `installed hooks (${added.join(', ')}) in ${settingsPath}` : `hooks already installed in ${settingsPath}`)
+    try {
+      const { settingsPath, added } = installHooks(claudeDir, `bun ${hookPath}`)
+      console.log(added.length ? `installed hooks (${added.join(', ')}) in ${settingsPath}` : `hooks already installed in ${settingsPath}`)
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err))
+      process.exit(1)
+    }
     break
   }
   case 'import': {
     if (!arg) { console.error('usage: 0rrery import <transcript.jsonl>'); process.exit(1) }
-    const r = await importTranscript(resolve(arg), url)
+    let r
+    try {
+      r = await importTranscript(resolve(arg), url)
+    } catch (err) {
+      console.error(`0rrery import: cannot read ${arg}: ${err instanceof Error ? err.message : String(err)}`)
+      process.exit(1)
+    }
     console.log(r.emitted ? `imported ${r.ops} ops from ${arg}` : `parse ok (${r.ops} ops) but server unreachable at ${url}`)
     process.exit(r.emitted ? 0 : 1)
     break

@@ -26,3 +26,9 @@ test('is idempotent and preserves unrelated settings', () => {
   expect(s.model).toBe('opus')
   expect(s.hooks.PreToolUse).toHaveLength(2)  // other-hook entry + ours, no duplicates
 })
+
+test('corrupt settings.json produces a clean error', () => {
+  const dir = mkdtempSync(join(tmpdir(), '0rrery-cli-'))
+  writeFileSync(join(dir, 'settings.json'), '{ not json')
+  expect(() => installHooks(dir, 'bun /x/hook.ts')).toThrow(/not valid JSON/)
+})
