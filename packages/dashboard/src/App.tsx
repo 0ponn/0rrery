@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { SessionsView } from './views/SessionsView'
 import { SessionDetailView } from './views/SessionDetailView'
+import { LiveView } from './views/LiveView'
 
 function useHashRoute(): string {
   const [hash, setHash] = useState(location.hash || '#/')
@@ -18,7 +19,7 @@ export function App() {
 
   let view = <SessionsView />
   if (sessionMatch) view = <SessionDetailView id={decodeURIComponent(sessionMatch[1])} />
-  // Task 14 adds: if (hash === '#/live') view = <LiveView />
+  if (hash === '#/live') view = <LiveView />
 
   return (
     <div className="app">
