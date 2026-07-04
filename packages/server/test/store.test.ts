@@ -54,6 +54,29 @@ test('span.end before span.start creates orphan-tolerant row', () => {
   store.close()
 })
 
+test('hook then transcript span.start merge: parent and attrs upgrade', () => {
+  const store = new Store(':memory:')
+  store.applyOps([{ op: 'span.start', id: 'tool:t1', sessionId: 's1', parentId: null, kind: 'tool', name: 'Bash', ts: 10, attrs: { a: 1 } }])
+  store.applyOps([{ op: 'span.start', id: 'tool:t1', sessionId: 's1', parentId: 'llm:m1', kind: 'tool', name: 'Bash', ts: 12, attrs: { b: 2 } }])
+  const sp = store.db.query("SELECT * FROM spans WHERE id='tool:t1'").get() as any
+  expect(sp.parent_id).toBe('llm:m1')
+  expect(sp.started_at).toBe(10)
+  expect(JSON.parse(sp.attrs)).toEqual({ a: 1, b: 2 })
+  store.close()
+})
+
+test('orphan span.end never creates an empty-id session', () => {
+  const store = new Store(':memory:')
+  store.applyOps([{ op: 'span.end', id: 'late1', ts: 5, status: 'ok' }])
+  store.applyOps([{ op: 'span.end', id: 'late1', ts: 6, status: 'ok' }])
+  expect((store.db.query("SELECT COUNT(*) c FROM sessions WHERE id=''").get() as any).c).toBe(0)
+  // and a later span.start upgrades the placeholder
+  store.applyOps([{ op: 'span.start', id: 'late1', sessionId: 'real', kind: 'tool', name: 'Bash', ts: 4 }])
+  const sp = store.db.query("SELECT * FROM spans WHERE id='late1'").get() as any
+  expect(sp.session_id).toBe('real')
+  store.close()
+})
+
 test('sweep deletes sessions idle past retention, cascading children', () => {
   const store = freshApplied()
   const deleted = store.sweep(30, 200 + 31 * 86400_000)

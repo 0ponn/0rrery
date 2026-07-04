@@ -38,6 +38,7 @@ export class Store {
   }
 
   private touchSession(sessionId: string, ts: number) {
+    if (!sessionId) return
     this.db.run(
       `INSERT INTO sessions (id, source, started_at, last_event_at) VALUES (?, 'api', ?, ?)
        ON CONFLICT(id) DO UPDATE SET last_event_at = MAX(last_event_at, excluded.last_event_at)`,
@@ -63,14 +64,30 @@ export class Store {
         this.touchSession(op.sessionId, op.ts)
         this.db.run(`UPDATE sessions SET status = 'ended', last_event_at = MAX(last_event_at, ?) WHERE id = ?`, [op.ts, op.sessionId])
         break
-      case 'span.start':
+      case 'span.start': {
         this.touchSession(op.sessionId, op.ts)
-        this.db.run(
-          `INSERT OR IGNORE INTO spans (id, session_id, parent_id, kind, name, started_at, attrs)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [op.id, op.sessionId, op.parentId ?? null, op.kind, op.name, op.ts, JSON.stringify(op.attrs ?? {})],
-        )
+        const existing = this.db.query('SELECT session_id, parent_id, started_at, attrs FROM spans WHERE id = ?').get(op.id) as
+          { session_id: string; parent_id: string | null; started_at: number; attrs: string } | null
+        if (!existing) {
+          this.db.run(
+            `INSERT INTO spans (id, session_id, parent_id, kind, name, started_at, attrs)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [op.id, op.sessionId, op.parentId ?? null, op.kind, op.name, op.ts, JSON.stringify(op.attrs ?? {})],
+          )
+        } else {
+          // hook-then-transcript upgrade: a live span.start may be re-written later with a
+          // richer parentId/attrs for the same id. Merge rather than drop the second write.
+          const sessionId = existing.session_id === '' ? op.sessionId : existing.session_id
+          const parentId = existing.parent_id ?? (op.parentId ?? null)
+          const startedAt = Math.min(existing.started_at, op.ts)
+          const merged = { ...JSON.parse(existing.attrs), ...(op.attrs ?? {}) }
+          this.db.run(
+            `UPDATE spans SET session_id = ?, parent_id = ?, started_at = ?, attrs = ? WHERE id = ?`,
+            [sessionId, parentId, startedAt, JSON.stringify(merged), op.id],
+          )
+        }
         break
+      }
       case 'span.end': {
         const existing = this.db.query('SELECT attrs, session_id FROM spans WHERE id = ?').get(op.id) as { attrs: string; session_id: string } | null
         if (existing) {
