@@ -1,0 +1,1 @@
+{ "name": "@0rrery/claude-code", "version": "0.1.0", "module": "src/index.ts", "dependencies": { "@0rrery/schema": "workspace:*" } }

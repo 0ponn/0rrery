@@ -1,0 +1,1 @@
+{ "name": "@0rrery/server", "version": "0.1.0", "module": "src/server.ts", "dependencies": { "@0rrery/schema": "workspace:*" } }
