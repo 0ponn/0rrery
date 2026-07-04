@@ -25,3 +25,10 @@ test('unsubscribe stops delivery; subscriber errors are swallowed', () => {
   expect(() => bus.publish([opA])).not.toThrow()
   expect(got).toEqual([])
 })
+
+test('unsubscribe prunes empty session entries', () => {
+  const bus = new LiveBus()
+  const un = bus.subscribe('a', () => {})
+  un()
+  expect((bus as any).subs.size).toBe(0)
+})

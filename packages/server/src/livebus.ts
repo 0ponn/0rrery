@@ -12,7 +12,12 @@ export class LiveBus {
   subscribe(sessionId: string | '*', fn: Fn): () => void {
     if (!this.subs.has(sessionId)) this.subs.set(sessionId, new Set())
     this.subs.get(sessionId)!.add(fn)
-    return () => this.subs.get(sessionId)?.delete(fn)
+    return () => {
+      const fns = this.subs.get(sessionId)
+      if (!fns) return
+      fns.delete(fn)
+      if (fns.size === 0) this.subs.delete(sessionId)
+    }
   }
 
   publish(ops: IngestOp[]): void {
