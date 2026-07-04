@@ -1,0 +1,25 @@
+:root {
+  --bg: #0b0e14; --panel: #11151f; --line: #1e2533; --fg: #d8dee9; --dim: #6b7489;
+  --accent: #7aa2f7; --ok: #9ece6a; --err: #f7768e; --run: #e0af68;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px;
+}
+* { box-sizing: border-box; margin: 0; }
+body { background: var(--bg); color: var(--fg); }
+.app { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+.topnav { display: flex; gap: 16px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+.topnav a { color: var(--dim); text-decoration: none; }
+.topnav a.active, .topnav a:hover { color: var(--fg); }
+main { padding: 20px 0; }
+.viewhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+h1 { font-size: 16px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+th { color: var(--dim); font-weight: 500; }
+td a { color: var(--accent); text-decoration: none; }
+.badge { padding: 1px 7px; border-radius: 8px; font-size: 11px; }
+.badge.active { background: color-mix(in srgb, var(--run) 20%, transparent); color: var(--run); }
+.badge.ended { background: color-mix(in srgb, var(--dim) 20%, transparent); color: var(--dim); }
+.empty, .error { color: var(--dim); padding: 18px 10px; }
+.error { color: var(--err); }
+select { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; }
