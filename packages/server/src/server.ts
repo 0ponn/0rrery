@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync } from 'node:fs'
+import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseOps, type IngestOp, type Rejected } from '@0rrery/schema'
 import { Store } from './store'
@@ -30,6 +30,7 @@ export function startServer(config: Config) {
   type WsData = { unsub: () => void; session: string }
   const server = Bun.serve<WsData>({
     port: config.port,
+    hostname: config.host,
     async fetch(req, srv) {
       const url = new URL(req.url)
       const path = url.pathname
@@ -71,6 +72,8 @@ export function startServer(config: Config) {
 
         if (path === '/api/stats' && req.method === 'GET') return json(getStats(store.db))
 
+        if (path.startsWith('/api/')) return json({ error: 'not found' }, 404)
+
         if (config.dashboardDist) {
           const filePath = join(config.dashboardDist, path === '/' ? 'index.html' : path)
           const file = Bun.file(filePath)
@@ -96,7 +99,7 @@ export function startServer(config: Config) {
   })
 
   return {
-    url: `http://localhost:${server.port}`,
+    url: `http://${config.host}:${server.port}`,
     store, bus,
     stop() { server.stop(true); store.close() },
   }

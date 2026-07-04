@@ -41,6 +41,14 @@ test('auth token gates ingest when configured', async () => {
   srv.stop()
 })
 
+test('unknown /api/ path 404s as JSON', async () => {
+  const srv = boot()
+  const res = await fetch(`${srv.url}/api/nope`)
+  expect(res.status).toBe(404)
+  expect((await res.json()).error).toBeDefined()
+  srv.stop()
+})
+
 test('malformed limit/offset degrade gracefully', async () => {
   const srv = boot()
   await fetch(`${srv.url}/api/ingest`, { method: 'POST', body: JSON.stringify(ops) })

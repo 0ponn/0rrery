@@ -8,6 +8,17 @@ test('defaults', () => {
   expect(c.dbPath.endsWith('/.0rrery/0rrery.db')).toBe(true)
   expect(c.retentionDays).toBe(90)
   expect(c.authToken).toBeNull()
+  expect(c.host).toBe('127.0.0.1')
+})
+
+test('ORRERY_HOST env wins over default; overrides win over env', () => {
+  process.env.ORRERY_HOST = '0.0.0.0'
+  try {
+    expect(loadConfig().host).toBe('0.0.0.0')
+    expect(loadConfig({ host: '10.0.0.5' }).host).toBe('10.0.0.5')
+  } finally {
+    delete process.env.ORRERY_HOST
+  }
 })
 
 test('env and overrides win in order', () => {
