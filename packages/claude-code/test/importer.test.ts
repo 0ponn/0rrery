@@ -62,6 +62,43 @@ test('emit failure does not advance offset or corrupt state', async () => {
   stop()
 })
 
+test('finalize appends a session.end with the max ts seen', async () => {
+  const { batches, url, stop } = mockIngest()
+  const dir = mkdtempSync(join(tmpdir(), '0rrery-imp-'))
+  const file = join(dir, 's.jsonl')
+  writeFileSync(file, line1 + '\n' + line2 + '\n')
+  const r = await importTranscript(file, url, 0, newTranscriptState(), true)
+  expect(r.emitted).toBe(true)
+  const last = batches[0][batches[0].length - 1]
+  expect(last.op).toBe('session.end')
+  expect(last.sessionId).toBe('imp1')
+  expect(last.ts).toBe(Date.parse('2026-07-04T12:00:05.000Z'))
+  stop()
+})
+
+test('finalize with zero parsed ops does not append session.end', async () => {
+  const { batches, url, stop } = mockIngest()
+  const dir = mkdtempSync(join(tmpdir(), '0rrery-imp-'))
+  const file = join(dir, 's.jsonl')
+  writeFileSync(file, line1 + '\n')
+  const state = newTranscriptState()
+  const r1 = await importTranscript(file, url, 0, state)
+  const r2 = await importTranscript(file, url, r1.bytesRead, state, true)
+  expect(r2.ops).toBe(0)
+  expect(batches).toHaveLength(1)  // finalize made no extra call since no ops were parsed
+  stop()
+})
+
+test('non-finalize path (default) does not append session.end', async () => {
+  const { batches, url, stop } = mockIngest()
+  const dir = mkdtempSync(join(tmpdir(), '0rrery-imp-'))
+  const file = join(dir, 's.jsonl')
+  writeFileSync(file, line1 + '\n')
+  await importTranscript(file, url, 0, newTranscriptState())
+  expect(batches[0].some((o: any) => o.op === 'session.end')).toBe(false)
+  stop()
+})
+
 test('empty increment emits nothing and succeeds', async () => {
   const { batches, url, stop } = mockIngest()
   const dir = mkdtempSync(join(tmpdir(), '0rrery-imp-'))

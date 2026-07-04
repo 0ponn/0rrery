@@ -20,3 +20,34 @@ test('returns false, never throws, when server is down or slow', async () => {
 test('no-op on empty ops', async () => {
   expect(await emitOps('http://localhost:1', [])).toBe(true)
 })
+
+test('attaches Authorization Bearer header when ORRERY_TOKEN is set', async () => {
+  let receivedAuth: unknown = null
+  const srv = Bun.serve({
+    port: 0,
+    async fetch(req) { receivedAuth = req.headers.get('authorization'); return new Response('{"accepted":0,"rejected":[]}') },
+  })
+  process.env.ORRERY_TOKEN = 'sekrit'
+  try {
+    await emitOps(`http://localhost:${srv.port}`, [{ op: 'session.end', sessionId: 's', ts: 1 }])
+    expect(receivedAuth).toBe('Bearer sekrit')
+  } finally {
+    delete process.env.ORRERY_TOKEN
+    srv.stop(true)
+  }
+})
+
+test('omits Authorization header when ORRERY_TOKEN is unset', async () => {
+  let receivedAuth: unknown = 'unset'
+  const srv = Bun.serve({
+    port: 0,
+    async fetch(req) { receivedAuth = req.headers.get('authorization'); return new Response('{"accepted":0,"rejected":[]}') },
+  })
+  delete process.env.ORRERY_TOKEN
+  try {
+    await emitOps(`http://localhost:${srv.port}`, [{ op: 'session.end', sessionId: 's', ts: 1 }])
+    expect(receivedAuth).toBeNull()
+  } finally {
+    srv.stop(true)
+  }
+})

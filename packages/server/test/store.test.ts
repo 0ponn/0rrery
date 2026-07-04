@@ -77,6 +77,18 @@ test('orphan span.end never creates an empty-id session', () => {
   store.close()
 })
 
+test('session.start after session.end resurrects status to active', () => {
+  const store = new Store(':memory:')
+  store.applyOps([{ op: 'session.start', sessionId: 'r1', source: 'claude-code', ts: 1 }])
+  store.applyOps([{ op: 'session.end', sessionId: 'r1', ts: 2 }])
+  let s = store.db.query("SELECT * FROM sessions WHERE id='r1'").get() as any
+  expect(s.status).toBe('ended')
+  store.applyOps([{ op: 'session.start', sessionId: 'r1', source: 'claude-code', ts: 3 }])
+  s = store.db.query("SELECT * FROM sessions WHERE id='r1'").get() as any
+  expect(s.status).toBe('active')
+  store.close()
+})
+
 test('sweep deletes sessions idle past retention, cascading children', () => {
   const store = freshApplied()
   const deleted = store.sweep(30, 200 + 31 * 86400_000)

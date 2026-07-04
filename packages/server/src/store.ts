@@ -56,7 +56,8 @@ export class Store {
              source = excluded.source, project = COALESCE(excluded.project, project),
              cwd = COALESCE(excluded.cwd, cwd), git_branch = COALESCE(excluded.git_branch, git_branch),
              started_at = MIN(started_at, excluded.started_at),
-             last_event_at = MAX(last_event_at, excluded.last_event_at)`,
+             last_event_at = MAX(last_event_at, excluded.last_event_at),
+             status = 'active'`,
           [op.sessionId, op.source, op.project ?? null, op.cwd ?? null, op.gitBranch ?? null, op.ts, op.ts, JSON.stringify(op.meta ?? {})],
         )
         break

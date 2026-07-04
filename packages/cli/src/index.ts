@@ -35,7 +35,7 @@ switch (cmd) {
     if (!arg) { console.error('usage: 0rrery import <transcript.jsonl>'); process.exit(1) }
     let r
     try {
-      r = await importTranscript(resolve(arg), url)
+      r = await importTranscript(resolve(arg), url, 0, undefined, true)
     } catch (err) {
       console.error(`0rrery import: cannot read ${arg}: ${err instanceof Error ? err.message : String(err)}`)
       process.exit(1)
