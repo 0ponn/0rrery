@@ -28,7 +28,7 @@ export function loadOffsets(path: string): Map<string, FileState> {
     if (snap?.version !== VERSION || typeof snap.files !== 'object' || snap.files === null) return out
     for (const [file, entry] of Object.entries(snap.files as Record<string, any>)) {
       if (!existsSync(file)) continue  // prune dead files
-      const offset = typeof entry?.offset === 'number' && entry.offset >= 0 ? entry.offset : 0
+      const offset = Number.isInteger(entry?.offset) && entry.offset >= 0 ? entry.offset : 0
       out.set(file, { offset, state: reviveState(entry?.state) })
     }
   } catch (e) {

@@ -61,6 +61,14 @@ test('reviveState fills fields missing from older snapshots', () => {
   expect(junk.sessionStarted).toBe(false)
 })
 
+test('non-integer offsets from a tampered snapshot reset to 0', () => {
+  const p = tmpPath()
+  const trackedFile = tmpPath()
+  writeFileSync(trackedFile, 'x')
+  writeFileSync(p, JSON.stringify({ version: 1, files: { [trackedFile]: { offset: 3.5, state: {} } } }))
+  expect(loadOffsets(p).get(trackedFile)!.offset).toBe(0)
+})
+
 test('saveOffsets to an unwritable path does not throw', () => {
   const files = new Map<string, FileState>()
   expect(() => saveOffsets('/proc/definitely/not/writable.json', files)).not.toThrow()
