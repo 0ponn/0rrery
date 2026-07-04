@@ -2,8 +2,7 @@ import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { importTranscript } from './importer'
 import { newTranscriptState, type TranscriptState } from './transcript'
-
-type FileState = { offset: number; state: TranscriptState }
+import { type FileState } from './offsets'
 
 export function startTailer(projectsDir: string, url: string, pollMs = 2000) {
   const files = new Map<string, FileState>()
