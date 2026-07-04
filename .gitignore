@@ -5,3 +5,4 @@ packages/dashboard/dist/
 *.db-shm
 .0rrery/
 dead-letter.jsonl
+.superpowers/
