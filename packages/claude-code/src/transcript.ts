@@ -13,7 +13,8 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
   let line: Line
   try { line = JSON.parse(raw) } catch { return [] }
   const ops: IngestOp[] = []
-  const ts = line.timestamp ? Date.parse(line.timestamp) : Date.now()
+  const parsed = line.timestamp ? Date.parse(line.timestamp) : NaN
+  const ts = Number.isNaN(parsed) ? Date.now() : parsed
   const sid = line.sessionId
   if (!sid) return []
 

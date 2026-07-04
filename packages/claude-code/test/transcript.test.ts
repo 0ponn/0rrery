@@ -34,3 +34,10 @@ test('fixture parses into expected ops', () => {
 test('garbage line yields []', () => {
   expect(parseTranscriptLine('not json', newTranscriptState())).toEqual([])
 })
+
+test('malformed timestamp falls back to a valid ts', () => {
+  const line = JSON.stringify({ type: 'user', message: { role: 'user', content: 'hi' }, uuid: 'u9', timestamp: 'not-a-date', cwd: '/p/x', sessionId: 'ts1' })
+  const ops = parseTranscriptLine(line, newTranscriptState())
+  expect(ops.length).toBeGreaterThan(0)
+  for (const op of ops) expect(Number.isInteger((op as any).ts)).toBe(true)
+})
