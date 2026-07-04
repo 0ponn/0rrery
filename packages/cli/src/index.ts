@@ -13,7 +13,7 @@ switch (cmd) {
     const config = loadConfig()
     const srv = startServer(config)
     const projectsDir = join(process.env.ORRERY_CLAUDE_DIR ?? join(homedir(), '.claude'), 'projects')
-    const tailer = startTailer(projectsDir, srv.url)
+    const tailer = startTailer(projectsDir, srv.url, 2000, join(config.dataDir, 'tailer-offsets.json'))
     console.log(`0rrery serving on ${srv.url} (db: ${config.dbPath})`)
     console.log(`tailing ${projectsDir}`)
     process.on('SIGINT', () => { tailer.stop(); srv.stop(); process.exit(0) })

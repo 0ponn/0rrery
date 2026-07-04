@@ -1,19 +1,27 @@
 import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { importTranscript } from './importer'
-import { newTranscriptState, type TranscriptState } from './transcript'
-import { type FileState } from './offsets'
+import { newTranscriptState } from './transcript'
+import { loadOffsets, saveOffsets, type FileState } from './offsets'
 
-export function startTailer(projectsDir: string, url: string, pollMs = 2000) {
-  const files = new Map<string, FileState>()
+export function startTailer(projectsDir: string, url: string, pollMs = 2000, offsetsPath?: string) {
+  const files: Map<string, FileState> = offsetsPath ? loadOffsets(offsetsPath) : new Map()
   let stopped = false
+  let dirty = false
 
   async function scanFile(path: string) {
     let fs = files.get(path)
     if (!fs) { fs = { offset: 0, state: newTranscriptState() }; files.set(path, fs) }
     try {
-      if (statSync(path).size > fs.offset) {
+      const size = statSync(path).size
+      if (size < fs.offset) {
+        // truncated/rotated: start over on this file
+        fs.offset = 0
+        fs.state = newTranscriptState()
+      }
+      if (size > fs.offset) {
         const r = await importTranscript(path, url, fs.offset, fs.state)
+        if (r.bytesRead !== fs.offset) dirty = true
         fs.offset = r.bytesRead
       }
     } catch {}
@@ -36,6 +44,10 @@ export function startTailer(projectsDir: string, url: string, pollMs = 2000) {
           for (const f of subs) await scanFile(join(subDir, f))
         }
       }
+    }
+    if (dirty && offsetsPath) {
+      saveOffsets(offsetsPath, files)
+      dirty = false
     }
   }
 
