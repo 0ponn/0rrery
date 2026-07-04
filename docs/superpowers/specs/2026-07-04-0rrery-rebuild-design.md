@@ -58,11 +58,15 @@ Token/cost lives in `attrs` on `llm` spans; promote to columns only when a query
 
 ```json
 [
+  {"op": "session.start", "sessionId": "...", "source": "claude-code", "project": "0rrery", "cwd": "/x", "gitBranch": "main", "ts": 0, "meta": {}},
   {"op": "span.start", "id": "...", "sessionId": "...", "parentId": null, "kind": "tool", "name": "Bash", "ts": 0, "attrs": {}},
   {"op": "span.end",   "id": "...", "ts": 0, "status": "ok", "attrs": {}},
-  {"op": "event",      "id": "...", "sessionId": "...", "type": "permission.requested", "ts": 0, "attrs": {}}
+  {"op": "event",      "id": "...", "sessionId": "...", "type": "permission.requested", "ts": 0, "attrs": {}},
+  {"op": "session.end", "sessionId": "...", "ts": 0}
 ]
 ```
+
+`session.start`/`session.end` populate the sessions table (`source`, `cwd`, `git_branch`); spans and events referencing an unknown session auto-create a minimal session row so out-of-order delivery never drops data. Timestamps are epoch milliseconds.
 
 Client-generated IDs make ingest idempotent: retries and duplicate hook fires are safe (upsert on ID). Types and zod validators live in `@0rrery/schema` and are shared by server and emitters.
 
@@ -80,7 +84,7 @@ CLI: `0rrery install` wires hooks into `~/.claude/settings.json`; `0rrery import
 ## Server
 
 - `Bun.serve`, one process. Ingest batches write in a single SQLite transaction, then publish to an in-process live bus fanning out over `WS /api/live`.
-- Config in `0rrery.config.ts`: port, db path, retention days. Retention sweep on startup.
+- Config via `loadConfig()` defaults + env overrides (`ORRERY_PORT`, `ORRERY_DB`, `ORRERY_TOKEN`): port, db path, retention days. A config file is deferred until a setting exists that env vars handle badly. Retention sweep on startup.
 - Invalid ingest items are rejected item-by-item (valid items still land); rejects go to a dead-letter JSONL so instrumentation bugs are visible.
 
 ## Dashboard
