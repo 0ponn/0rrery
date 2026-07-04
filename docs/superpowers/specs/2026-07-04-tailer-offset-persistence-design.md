@@ -46,6 +46,11 @@ CLI `serve` passes `join(config.dataDir, 'tailer-offsets.json')`.
 - Tailer integration (temp dirs + mock ingest server): pass → stop → new tailer with the same offsetsPath on an unchanged file → zero POSTs; append one line → only the increment POSTs; truncate + rewrite → full re-ingest of new content.
 - E2E untouched.
 
+## Accepted semantics
+
+- Server-rejected (schema-invalid) ops are skipped and the offset advances past them — retrying is futile by definition; persistence makes that skip survive restarts, which is intended.
+- Same-path file recreation LARGER than the old offset silently skips the recreated head. Claude Code session files are append-only and UUID-named, so this cannot occur today; if transcript rewriting ever ships, harden by persisting an inode or first-line hash per entry.
+
 ## Out of scope
 
 Offset persistence for `0rrery import` (one-shot by design), multi-tailer coordination on one snapshot file, snapshot compaction/GC beyond dead-file pruning at load.
