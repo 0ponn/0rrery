@@ -29,11 +29,11 @@ Closes the v1 spec drift found by the final whole-branch review: subagent activi
 **Tailer/importer recursion.** The tailer scan adds `<project>/<sessionId>/subagents/*.jsonl`; each agent file gets its own byte offset and `TranscriptState` with the existing retry/idempotency semantics. `0rrery import <session.jsonl>` also imports the sibling `<sessionId>/subagents/` dir when present.
 
 **Agent spans (parser).** Parsing an agent file (detected by `agentId` present on lines):
-- First line: `span.start` id `agent:<agentId>`, kind `agent`, name = `attributionAgent` (fallback `(agent)`), sessionId from the line. No `session.start` is emitted from agent files (the parent session owns that).
+- First line: `span.start` id `agent:<agentId>`, kind `agent`, name = `attributionAgent` (fallback `'(unknown)'` — the single merge-upgradeable sentinel shared with the store), sessionId from the line. No `session.start` is emitted from agent files (the parent session owns that).
 - llm spans from that file get `parentId: agent:<agentId>`; tool spans keep their existing llm parent, so the chain reads agent → llm → tool. Events carry `spanId` as today plus `attrs.agentId`.
 - Each pass ends with `span.end` id `agent:<agentId>` at the max ts seen, status `ok` — re-emission ratchets `ended_at` forward via the existing span.end update path.
 
-**Linkage.** When the parent-session parser sees an Agent `tool_result` whose text matches `/agentId: (a[0-9a-f]{6,})/`, it emits `span.start` `{id: agent:<match>, parentId: tool:<tool_use_id>, kind: agent, name: '(agent)', ts}` — the store's merge upsert COALESCEs parent_id regardless of which file was ingested first, and name/attrs from the richer agent-file emission win by later merge.
+**Linkage.** When the parent-session parser sees an Agent `tool_result` whose text matches `/agentId: (a[0-9a-f]{6,})/`, it emits `span.start` `{id: agent:<match>, parentId: tool:<tool_use_id>, kind: agent, name: '(unknown)', ts}` — the store's merge upsert COALESCEs parent_id regardless of which file was ingested first, and name/attrs from the richer agent-file emission win by later merge.
 
 **Compaction.** `compact_boundary` → event `session.compact`, id `evt:compact:<uuid>`, attrs `{trigger, preTokens, durationMs}`. `isCompactSummary` user lines are suppressed from `message.user` and emit `session.compact_summary` (id `evt:msg:<uuid>`, preview attr) instead.
 
@@ -60,7 +60,7 @@ Closes the v1 spec drift found by the final whole-branch review: subagent activi
 
 ## Rollout
 
-No schema migration; wire format unchanged. Post-merge: `0rrery install` (adds two hook events), `systemctl --user restart 0rrery`; restart backfill retro-fits subtrees onto historical sessions.
+No schema migration; wire format unchanged. Post-merge: `0rrery install` (adds two hook events), `systemctl --user restart 0rrery`; restart backfill retro-fits span subtrees onto historical sessions; historical compact-summary events already stored as `message.user` keep their original type (events are insert-only).
 
 ## Out of scope
 
