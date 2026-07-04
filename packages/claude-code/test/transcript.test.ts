@@ -1,7 +1,7 @@
 import { test, expect } from 'bun:test'
 import { parseTranscriptLine, newTranscriptState } from '../src/transcript'
 
-const lines = (await Bun.file(new URL('../fixtures/session.jsonl', import.meta.url)).text()).split('\n').filter(Boolean)
+const lines = (await Bun.file(new URL('../fixtures/fix1.jsonl', import.meta.url)).text()).split('\n').filter(Boolean)
 
 test('fixture parses into expected ops', () => {
   const state = newTranscriptState()
