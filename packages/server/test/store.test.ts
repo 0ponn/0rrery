@@ -111,3 +111,25 @@ test('sweep deletes sessions idle past retention, cascading children', () => {
   expect((store.db.query('SELECT COUNT(*) c FROM events').get() as any).c).toBe(0)
   store.close()
 })
+
+test('placeholder name/kind upgrade on merge; real names never regress', () => {
+  const store = new Store(':memory:')
+  // linkage-style placeholder arrives first
+  store.applyOps([{ op: 'span.start', id: 'agent:a1', sessionId: 's1', parentId: 'tool:t1', kind: 'agent', name: '(unknown)', ts: 10 }])
+  store.applyOps([{ op: 'span.start', id: 'agent:a1', sessionId: 's1', parentId: null, kind: 'agent', name: 'general-purpose', ts: 12 }])
+  let sp = store.db.query("SELECT * FROM spans WHERE id='agent:a1'").get() as any
+  expect(sp.name).toBe('general-purpose')
+  expect(sp.parent_id).toBe('tool:t1')
+  // reverse order: real name first is kept
+  store.applyOps([{ op: 'span.start', id: 'agent:a2', sessionId: 's1', kind: 'agent', name: 'Explore', ts: 20 }])
+  store.applyOps([{ op: 'span.start', id: 'agent:a2', sessionId: 's1', kind: 'agent', name: '(unknown)', ts: 21 }])
+  sp = store.db.query("SELECT * FROM spans WHERE id='agent:a2'").get() as any
+  expect(sp.name).toBe('Explore')
+  // orphan span.end placeholder heals kind AND name from the real start
+  store.applyOps([{ op: 'span.end', id: 'late2', ts: 30, status: 'ok' }])
+  store.applyOps([{ op: 'span.start', id: 'late2', sessionId: 's1', kind: 'tool', name: 'Bash', ts: 29 }])
+  sp = store.db.query("SELECT * FROM spans WHERE id='late2'").get() as any
+  expect(sp.kind).toBe('tool')
+  expect(sp.name).toBe('Bash')
+  store.close()
+})

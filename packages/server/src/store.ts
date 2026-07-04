@@ -67,8 +67,8 @@ export class Store {
         break
       case 'span.start': {
         this.touchSession(op.sessionId, op.ts)
-        const existing = this.db.query('SELECT session_id, parent_id, started_at, attrs FROM spans WHERE id = ?').get(op.id) as
-          { session_id: string; parent_id: string | null; started_at: number; attrs: string } | null
+        const existing = this.db.query('SELECT session_id, parent_id, started_at, attrs, kind, name FROM spans WHERE id = ?').get(op.id) as
+          { session_id: string; parent_id: string | null; started_at: number; attrs: string; kind: string; name: string } | null
         if (!existing) {
           this.db.run(
             `INSERT INTO spans (id, session_id, parent_id, kind, name, started_at, attrs)
@@ -81,10 +81,12 @@ export class Store {
           const sessionId = existing.session_id === '' ? op.sessionId : existing.session_id
           const parentId = existing.parent_id ?? (op.parentId ?? null)
           const startedAt = Math.min(existing.started_at, op.ts)
+          const name = existing.name === '(unknown)' ? op.name : existing.name
+          const kind = existing.kind === 'custom' && existing.name === '(unknown)' ? op.kind : existing.kind
           const merged = { ...JSON.parse(existing.attrs), ...(op.attrs ?? {}) }
           this.db.run(
-            `UPDATE spans SET session_id = ?, parent_id = ?, started_at = ?, attrs = ? WHERE id = ?`,
-            [sessionId, parentId, startedAt, JSON.stringify(merged), op.id],
+            `UPDATE spans SET session_id = ?, parent_id = ?, started_at = ?, kind = ?, name = ?, attrs = ? WHERE id = ?`,
+            [sessionId, parentId, startedAt, kind, name, JSON.stringify(merged), op.id],
           )
         }
         break
