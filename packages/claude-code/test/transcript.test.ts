@@ -82,3 +82,27 @@ test('isCompactSummary suppresses message.user and emits session.compact_summary
   const s = ops.find(o => o.op === 'event' && (o as any).type === 'session.compact_summary') as any
   expect(s.attrs.preview).toContain('continued from a previous conversation')
 })
+
+test('linkage regex only fires on Agent tool results', () => {
+  const state = newTranscriptState()
+  const mk = (name: string, tid: string) => [
+    JSON.stringify({ type: 'assistant', message: { id: `m_${tid}`, model: 'x', role: 'assistant', content: [{ type: 'tool_use', id: tid, name, input: {} }], usage: {} }, uuid: `u_${tid}`, timestamp: '2026-07-04T12:00:00.000Z', cwd: '/p/x', sessionId: 'g1' }),
+    JSON.stringify({ type: 'user', message: { role: 'user', content: [{ tool_use_id: tid, type: 'tool_result', content: 'blah agentId: a1b2c3d4e5 blah' }] }, uuid: `r_${tid}`, timestamp: '2026-07-04T12:00:01.000Z', cwd: '/p/x', sessionId: 'g1' }),
+  ]
+  const ops = [...mk('Read', 'tu_read'), ...mk('Agent', 'tu_agent')].flatMap(l => parseTranscriptLine(l, state))
+  const links = ops.filter(o => o.op === 'span.start' && (o as any).kind === 'agent')
+  expect(links).toHaveLength(1)
+  expect((links[0] as any).parentId).toBe('tool:tu_agent')
+})
+
+test('linkage handles multiple tool_results per line and object content', () => {
+  const state = newTranscriptState()
+  const setup = JSON.stringify({ type: 'assistant', message: { id: 'm_multi', model: 'x', role: 'assistant', content: [{ type: 'tool_use', id: 'tu_a1', name: 'Agent', input: {} }, { type: 'tool_use', id: 'tu_a2', name: 'Task', input: {} }], usage: {} }, uuid: 'u_multi', timestamp: '2026-07-04T12:00:00.000Z', cwd: '/p/x', sessionId: 'g2' })
+  const results = JSON.stringify({ type: 'user', message: { role: 'user', content: [
+    { tool_use_id: 'tu_a1', type: 'tool_result', content: [{ type: 'text', text: 'agentId: aaaa111122' }] },
+    { tool_use_id: 'tu_a2', type: 'tool_result', content: 'agentId: bbbb33  no wait agentId: acccc44455' },
+  ] }, uuid: 'r_multi', timestamp: '2026-07-04T12:00:01.000Z', cwd: '/p/x', sessionId: 'g2' })
+  const ops = [setup, results].flatMap(l => parseTranscriptLine(l, state))
+  const links = ops.filter(o => o.op === 'span.start' && (o as any).kind === 'agent').map((o: any) => [o.id, o.parentId])
+  expect(links).toEqual([['agent:aaaa111122', 'tool:tu_a1'], ['agent:acccc44455', 'tool:tu_a2']])
+})

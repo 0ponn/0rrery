@@ -6,9 +6,10 @@ export type TranscriptState = {
   agentNamed: boolean
   agentId: string | null
   agentFirstTs: number | null
+  agentToolUseIds: Set<string>
 }
 export function newTranscriptState(): TranscriptState {
-  return { sessionStarted: false, agentStarted: false, agentNamed: false, agentId: null, agentFirstTs: null }
+  return { sessionStarted: false, agentStarted: false, agentNamed: false, agentId: null, agentFirstTs: null, agentToolUseIds: new Set() }
 }
 
 type Line = {
@@ -32,15 +33,16 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
   if (line.agentId) {
     state.agentId = line.agentId
     state.agentFirstTs ??= ts
+    // emit once unnamed, then once more on first name
     if (!state.agentStarted || (!state.agentNamed && line.attributionAgent)) {
       state.agentStarted = true
       if (line.attributionAgent) state.agentNamed = true
       ops.push({
         op: 'span.start', id: `agent:${line.agentId}`, sessionId: sid, parentId: null, kind: 'agent',
-        name: line.attributionAgent ?? '(unknown)', ts: state.agentFirstTs, attrs: {},
+        name: line.attributionAgent || '(unknown)', ts: state.agentFirstTs, attrs: {},
       })
     }
-  } else if (!state.sessionStarted && line.cwd) {
+  } else if (!state.agentId && !state.sessionStarted && line.cwd) {
     state.sessionStarted = true
     ops.push({
       op: 'session.start', sessionId: sid, source: 'claude-code',
@@ -62,6 +64,7 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
   if (line.type === 'user' && Array.isArray(line.message?.content)) {
     for (const block of line.message.content as any[]) {
       if (block?.type !== 'tool_result' || !block.tool_use_id) continue
+      if (!state.agentToolUseIds.has(block.tool_use_id)) continue
       const text = typeof block.content === 'string' ? block.content : JSON.stringify(block.content ?? '')
       const m = text.match(/agentId: (a[0-9a-f]{6,})/)
       if (m) {
@@ -89,6 +92,7 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
     const content = Array.isArray(m.content) ? m.content : []
     content.forEach((block: any, i: number) => {
       if (block?.type === 'tool_use') {
+        if (block.name === 'Agent' || block.name === 'Task') state.agentToolUseIds.add(block.id)
         ops.push({
           op: 'span.start', id: `tool:${block.id}`, sessionId: sid, parentId: `llm:${m.id}`,
           kind: 'tool', name: block.name ?? '(tool)', ts, attrs: { input: block.input ?? null, ...side },

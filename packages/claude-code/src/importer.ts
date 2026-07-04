@@ -28,7 +28,9 @@ export async function importTranscript(
   const consumedBytes = Buffer.byteLength(text.slice(0, lastNewline + 1))
 
   // parsing mutates state; snapshot ALL fields so a failed emit retries cleanly
-  const snapshot = { ...state }
+  // agentToolUseIds is a Set (reference type) — clone it so the restore is an exact copy,
+  // not an alias to the (possibly further-mutated) live state
+  const snapshot = { ...state, agentToolUseIds: new Set(state.agentToolUseIds) }
   const ops = complete.split('\n').filter(Boolean).flatMap(l => parseTranscriptLine(l, state))
   if (ops.length > 0) {
     const maxTs = ops.reduce((max, o) => (o.ts > max ? o.ts : max), 0)
