@@ -1,4 +1,5 @@
-import { openSync, readSync, fstatSync, closeSync } from 'node:fs'
+import { openSync, readSync, fstatSync, closeSync, readdirSync } from 'node:fs'
+import { join, dirname, basename } from 'node:path'
 import type { IngestOp } from '@0rrery/schema'
 import { parseTranscriptLine, newTranscriptState, type TranscriptState } from './transcript'
 import { emitOps } from './emit'
@@ -26,20 +27,37 @@ export async function importTranscript(
   const complete = text.slice(0, lastNewline)
   const consumedBytes = Buffer.byteLength(text.slice(0, lastNewline + 1))
 
-  // parsing mutates state; snapshot so a failed emit can be retried cleanly
-  const sessionStartedBefore = state.sessionStarted
+  // parsing mutates state; snapshot ALL fields so a failed emit retries cleanly
+  const snapshot = { ...state }
   const ops = complete.split('\n').filter(Boolean).flatMap(l => parseTranscriptLine(l, state))
-  if (finalize && ops.length > 0) {
-    const sessionId = (ops.find(o => 'sessionId' in o) as { sessionId: string } | undefined)?.sessionId
-    if (sessionId) {
-      const maxTs = ops.reduce((max, o) => (o.ts > max ? o.ts : max), 0)
-      ops.push({ op: 'session.end', sessionId, ts: maxTs } satisfies IngestOp)
+  if (ops.length > 0) {
+    const maxTs = ops.reduce((max, o) => (o.ts > max ? o.ts : max), 0)
+    if (state.agentId) {
+      ops.push({ op: 'span.end', id: `agent:${state.agentId}`, ts: maxTs, status: 'ok' } satisfies IngestOp)
+    }
+    if (finalize && !state.agentId) {
+      const sessionId = (ops.find(o => 'sessionId' in o) as { sessionId: string } | undefined)?.sessionId
+      if (sessionId) ops.push({ op: 'session.end', sessionId, ts: maxTs } satisfies IngestOp)
     }
   }
   const emitted = await emitOps(url, ops, 5000)
   if (!emitted) {
-    state.sessionStarted = sessionStartedBefore
+    Object.assign(state, snapshot)
     return { ops: ops.length, emitted: false, bytesRead: fromByte }
   }
   return { ops: ops.length, emitted, bytesRead: fromByte + consumedBytes }
+}
+
+export async function importSession(path: string, url: string, opts: { finalize?: boolean } = {}) {
+  let files = 0, ops = 0, emitted = true
+  const main = await importTranscript(path, url, 0, newTranscriptState(), opts.finalize ?? false)
+  files++; ops += main.ops; emitted = emitted && main.emitted
+  const subDir = join(dirname(path), basename(path, '.jsonl'), 'subagents')
+  let subs: string[] = []
+  try { subs = readdirSync(subDir).filter(f => f.endsWith('.jsonl')) } catch {}
+  for (const f of subs) {
+    const r = await importTranscript(join(subDir, f), url, 0, newTranscriptState())
+    files++; ops += r.ops; emitted = emitted && r.emitted
+  }
+  return { files, ops, emitted }
 }

@@ -1,5 +1,5 @@
 export { mapHookEvent, type HookInput } from './map'
 export { emitOps } from './emit'
 export { parseTranscriptLine, newTranscriptState, type TranscriptState } from './transcript'
-export { importTranscript, type ImportResult } from './importer'
+export { importTranscript, importSession, type ImportResult } from './importer'
 export { startTailer } from './tailer'

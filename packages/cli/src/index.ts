@@ -2,7 +2,7 @@
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { startServer, loadConfig } from '@0rrery/server'
-import { startTailer, importTranscript } from '@0rrery/claude-code'
+import { startTailer, importSession } from '@0rrery/claude-code'
 import { installHooks } from './install'
 
 const [cmd, arg] = process.argv.slice(2)
@@ -35,12 +35,12 @@ switch (cmd) {
     if (!arg) { console.error('usage: 0rrery import <transcript.jsonl>'); process.exit(1) }
     let r
     try {
-      r = await importTranscript(resolve(arg), url, 0, undefined, true)
+      r = await importSession(resolve(arg), url, { finalize: true })
     } catch (err) {
       console.error(`0rrery import: cannot read ${arg}: ${err instanceof Error ? err.message : String(err)}`)
       process.exit(1)
     }
-    console.log(r.emitted ? `imported ${r.ops} ops from ${arg}` : `parse ok (${r.ops} ops) but server unreachable at ${url}`)
+    console.log(r.emitted ? `imported ${r.ops} ops from ${r.files} file(s)` : `parse ok (${r.ops} ops) but server unreachable at ${url}`)
     process.exit(r.emitted ? 0 : 1)
     break
   }
