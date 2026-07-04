@@ -3,7 +3,8 @@ import type { IngestOp } from '@0rrery/schema'
 export type HookInput = {
   hook_event_name: string; session_id: string; cwd?: string; transcript_path?: string
   tool_name?: string; tool_input?: unknown; tool_response?: unknown; tool_use_id?: string
-  message?: string; [k: string]: unknown
+  message?: string; notification_type?: string; permission_reason?: string; permission_mode?: string
+  [k: string]: unknown
 }
 
 function toolSpanId(input: HookInput, now: number): string {
@@ -24,7 +25,15 @@ export function mapHookEvent(input: HookInput, now: number = Date.now()): Ingest
       return [{ op: 'span.end', id: toolSpanId(input, now), ts: now, status: r?.is_error ? 'error' : 'ok' }]
     }
     case 'Notification':
-      return [{ op: 'event', id: `evt:${sid}:notification:${now}`, sessionId: sid, type: 'notification', ts: now, attrs: { message: input.message ?? '' } }]
+      return [{ op: 'event', id: `evt:${sid}:notification:${now}`, sessionId: sid, type: 'notification', ts: now, attrs: { message: input.message ?? '', notification_type: input.notification_type ?? '' } }]
+    case 'PermissionRequest': {
+      const key = input.tool_use_id ?? `${sid}:${now}`
+      return [{ op: 'event', id: `evt:perm:req:${key}`, sessionId: sid, spanId: input.tool_use_id ? `tool:${input.tool_use_id}` : null, type: 'permission.requested', ts: now, attrs: { tool: input.tool_name ?? '', reason: input.permission_reason ?? '', mode: input.permission_mode ?? '' } }]
+    }
+    case 'PermissionDenied': {
+      const key = input.tool_use_id ?? `${sid}:${now}`
+      return [{ op: 'event', id: `evt:perm:res:${key}`, sessionId: sid, spanId: input.tool_use_id ? `tool:${input.tool_use_id}` : null, type: 'permission.resolved', ts: now, attrs: { outcome: 'denied', source: 'auto', tool: input.tool_name ?? '' } }]
+    }
     case 'Stop':
       return [{ op: 'event', id: `evt:${sid}:stop:${now}`, sessionId: sid, type: 'turn.stop', ts: now, attrs: {} }]
     case 'SubagentStop':

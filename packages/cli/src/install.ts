@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const HOOK_EVENTS = ['SessionStart', 'SessionEnd', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop', 'SubagentStop'] as const
+const HOOK_EVENTS = ['SessionStart', 'SessionEnd', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop', 'SubagentStop', 'PermissionRequest', 'PermissionDenied'] as const
 const NEEDS_MATCHER = new Set(['PreToolUse', 'PostToolUse'])
 
 export function installHooks(claudeDir: string, hookCommand: string): { settingsPath: string; added: string[] } {
