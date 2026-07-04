@@ -41,11 +41,13 @@ export function SessionDetailView({ id }: { id: string }) {
   useEffect(() => {
     let ws: WebSocket | null = null
     let cancelled = false
+    let recheck: ReturnType<typeof setTimeout> | null = null
     const load = () => fetchSession(id).then(d => {
       if (cancelled) return
       setError('')
       setDetail(d)
       if (d.session.effectiveStatus === 'active' && !ws) ws = liveSocket(id, () => load())
+      else if (d.session.effectiveStatus === 'stale' && !ws) recheck = setTimeout(load, 30_000)
     }).catch(e => {
       if (cancelled) return
       setError(String(e))
@@ -54,6 +56,7 @@ export function SessionDetailView({ id }: { id: string }) {
     return () => {
       cancelled = true
       ws?.close()
+      if (recheck) clearTimeout(recheck)
     }
   }, [id])
 
