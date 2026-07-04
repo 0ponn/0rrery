@@ -1,13 +1,17 @@
 import type { Database } from 'bun:sqlite'
 import type { SessionRow, SpanRow, EventRow } from '@0rrery/schema'
 
-export type SessionFilter = { project?: string; status?: 'active' | 'ended'; limit?: number; offset?: number }
+export type QueryOpts = { now: number; staleAfterMs: number }
+export type SessionFilter = { project?: string; status?: 'active' | 'ended' | 'stale'; limit?: number; offset?: number }
 
-export function listSessions(db: Database, f: SessionFilter = {}): SessionRow[] {
+export function listSessions(db: Database, f: SessionFilter = {}, opts: QueryOpts): SessionRow[] {
+  const cutoff = opts.now - opts.staleAfterMs
   const where: string[] = []
   const params: (string | number)[] = []
   if (f.project) { where.push('project = ?'); params.push(f.project) }
-  if (f.status) { where.push('status = ?'); params.push(f.status) }
+  if (f.status === 'active') { where.push("status = 'active' AND last_event_at >= ?"); params.push(cutoff) }
+  else if (f.status === 'stale') { where.push("status = 'active' AND last_event_at < ?"); params.push(cutoff) }
+  else if (f.status === 'ended') { where.push("status = 'ended'") }
   const sql = `SELECT * FROM sessions ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY last_event_at DESC LIMIT ? OFFSET ?`
   params.push(f.limit ?? 50, f.offset ?? 0)
@@ -24,11 +28,13 @@ export function getSessionDetail(db: Database, id: string): SessionDetail | null
   return { session, spans, events }
 }
 
-export function getStats(db: Database) {
-  const one = (sql: string) => (db.query(sql).get() as { c: number }).c
+export function getStats(db: Database, opts: QueryOpts) {
+  const cutoff = opts.now - opts.staleAfterMs
+  const one = (sql: string, ...p: (string | number)[]) => (db.query(sql).get(...p) as { c: number }).c
   return {
     sessions: one('SELECT COUNT(*) c FROM sessions'),
-    activeSessions: one("SELECT COUNT(*) c FROM sessions WHERE status = 'active'"),
+    activeSessions: one("SELECT COUNT(*) c FROM sessions WHERE status = 'active' AND last_event_at >= ?", cutoff),
+    staleSessions: one("SELECT COUNT(*) c FROM sessions WHERE status = 'active' AND last_event_at < ?", cutoff),
     spans: one('SELECT COUNT(*) c FROM spans'),
     events: one('SELECT COUNT(*) c FROM events'),
   }

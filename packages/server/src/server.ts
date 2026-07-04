@@ -34,6 +34,7 @@ export function startServer(config: Config) {
     async fetch(req, srv) {
       const url = new URL(req.url)
       const path = url.pathname
+      const qopts = { now: Date.now(), staleAfterMs: config.staleAfterMs }
 
       if (path === '/api/live') {
         const session = url.searchParams.get('session') ?? '*'
@@ -61,7 +62,7 @@ export function startServer(config: Config) {
             limit: numParam(url.searchParams.get('limit')),
             offset: numParam(url.searchParams.get('offset')),
           }
-          return json(listSessions(store.db, f))
+          return json(listSessions(store.db, f, qopts))
         }
 
         const m = path.match(/^\/api\/sessions\/([^/]+)$/)
@@ -70,7 +71,7 @@ export function startServer(config: Config) {
           return detail ? json(detail) : json({ error: 'not found' }, 404)
         }
 
-        if (path === '/api/stats' && req.method === 'GET') return json(getStats(store.db))
+        if (path === '/api/stats' && req.method === 'GET') return json(getStats(store.db, qopts))
 
         if (path.startsWith('/api/')) return json({ error: 'not found' }, 404)
 

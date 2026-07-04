@@ -41,3 +41,17 @@ test('explicit null dashboardDist honored; dbPath follows overridden dataDir', (
   expect(c.dashboardDist).toBeNull()
   expect(c.dbPath).toBe('/tmp/xdir/0rrery.db')
 })
+
+test('staleAfterMs: default, env, garbage, override', () => {
+  delete process.env.ORRERY_STALE_MS
+  expect(loadConfig().staleAfterMs).toBe(1_800_000)
+  process.env.ORRERY_STALE_MS = '60000'
+  try {
+    expect(loadConfig().staleAfterMs).toBe(60000)
+    expect(loadConfig({ staleAfterMs: 5 }).staleAfterMs).toBe(5)
+  } finally { delete process.env.ORRERY_STALE_MS }
+  process.env.ORRERY_STALE_MS = 'abc'
+  try { expect(loadConfig().staleAfterMs).toBe(1_800_000) } finally { delete process.env.ORRERY_STALE_MS }
+  process.env.ORRERY_STALE_MS = '-5'
+  try { expect(loadConfig().staleAfterMs).toBe(1_800_000) } finally { delete process.env.ORRERY_STALE_MS }
+})
