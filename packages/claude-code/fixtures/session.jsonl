@@ -1,0 +1,6 @@
+{"type":"last-prompt","leafUuid":"u0","sessionId":"fix1"}
+{"parentUuid":null,"isSidechain":false,"type":"user","message":{"role":"user","content":"list the files"},"uuid":"u1","timestamp":"2026-07-04T12:00:00.000Z","cwd":"/home/dev/myproj","sessionId":"fix1","version":"2.0.0","gitBranch":"main"}
+{"parentUuid":"u1","isSidechain":false,"type":"assistant","message":{"model":"claude-fable-5","id":"msg_01","type":"message","role":"assistant","content":[{"type":"text","text":"Listing files now."},{"type":"tool_use","id":"toolu_01","name":"Bash","input":{"command":"ls"}}],"usage":{"input_tokens":100,"output_tokens":20,"cache_read_input_tokens":50,"cache_creation_input_tokens":10}},"uuid":"u2","timestamp":"2026-07-04T12:00:01.000Z","cwd":"/home/dev/myproj","sessionId":"fix1","gitBranch":"main"}
+{"parentUuid":"u2","isSidechain":false,"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_01","type":"tool_result","content":"file1\nfile2"}]},"uuid":"u3","timestamp":"2026-07-04T12:00:02.000Z","cwd":"/home/dev/myproj","sessionId":"fix1","gitBranch":"main"}
+{"type":"ai-title","title":"Listing files","sessionId":"fix1"}
+not json at all
