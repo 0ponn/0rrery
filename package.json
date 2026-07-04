@@ -5,5 +5,8 @@
   "scripts": {
     "test": "bun test",
     "build": "bun run --filter '@0rrery/dashboard' build"
+  },
+  "devDependencies": {
+    "bun-types": "^1.3.14"
   }
 }

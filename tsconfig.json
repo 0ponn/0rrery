@@ -7,6 +7,9 @@
     "skipLibCheck": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["bun-types"]
+    "types": ["bun-types"],
+    "paths": {
+      "@0rrery/*": ["./packages/*/src/index.ts"]
+    }
   }
 }

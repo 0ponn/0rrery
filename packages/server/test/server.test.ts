@@ -41,6 +41,18 @@ test('auth token gates ingest when configured', async () => {
   srv.stop()
 })
 
+test('malformed limit/offset degrade gracefully', async () => {
+  const srv = boot()
+  await fetch(`${srv.url}/api/ingest`, { method: 'POST', body: JSON.stringify(ops) })
+  const res = await fetch(`${srv.url}/api/sessions?limit=abc&offset=-2`)
+  expect(res.status).toBe(200)
+  expect(await res.json()).toHaveLength(1)
+  const frac = await fetch(`${srv.url}/api/sessions?limit=1.5`)
+  expect(frac.status).toBe(200)
+  expect(await frac.json()).toHaveLength(1)
+  srv.stop()
+})
+
 test('websocket live delivers ingested ops', async () => {
   const srv = boot()
   const wsUrl = srv.url.replace('http', 'ws') + '/api/live?session=*'
