@@ -9,6 +9,7 @@
     "jsx": "react-jsx",
     "types": ["bun-types"],
     "paths": {
+      "@0rrery/server": ["./packages/server/src/server-exports.ts"],
       "@0rrery/*": ["./packages/*/src/index.ts"]
     }
   }
