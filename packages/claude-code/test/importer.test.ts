@@ -138,6 +138,18 @@ test('failed emit restores ALL state fields', async () => {
   expect(state).toEqual(newTranscriptState())
 })
 
+test('importSession short-circuits on failed main emit, leaving subagent files untouched', async () => {
+  const dir = mkdtempSync(join(tmpdir(), '0rrery-imp-'))
+  writeFileSync(join(dir, 's10.jsonl'), line1.replace(/imp1/g, 's10') + '\n')
+  const subDir = join(dir, 's10', 'subagents')
+  mkdirSync(subDir, { recursive: true })
+  writeFileSync(join(subDir, 'agent-a1b2c3d4e5.jsonl'), agentLine.replace(/imp2/g, 's10') + '\n')
+  const { importSession } = await import('../src/importer')
+  const r = await importSession(join(dir, 's10.jsonl'), 'http://localhost:1')
+  expect(r.files).toBe(1)
+  expect(r.emitted).toBe(false)
+})
+
 test('importSession imports main file plus subagents dir, finalize on main only', async () => {
   const { batches, url, stop } = mockIngest()
   const dir = mkdtempSync(join(tmpdir(), '0rrery-imp-'))

@@ -54,6 +54,7 @@ export async function importSession(path: string, url: string, opts: { finalize?
   let files = 0, ops = 0, emitted = true
   const main = await importTranscript(path, url, 0, newTranscriptState(), opts.finalize ?? false)
   files++; ops += main.ops; emitted = emitted && main.emitted
+  if (!main.emitted) return { files, ops, emitted: false }
   const subDir = join(dirname(path), basename(path, '.jsonl'), 'subagents')
   let subs: string[] = []
   try { subs = readdirSync(subDir).filter(f => f.endsWith('.jsonl')) } catch {}
