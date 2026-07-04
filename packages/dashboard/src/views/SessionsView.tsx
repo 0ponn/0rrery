@@ -9,7 +9,11 @@ export function SessionsView() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetchSessions(status ? { status } : {}).then(setSessions).catch(e => setError(String(e)))
+    let cancelled = false
+    fetchSessions(status ? { status } : {})
+      .then(s => { if (!cancelled) { setSessions(s); setError('') } })
+      .catch(e => { if (!cancelled) setError(String(e)) })
+    return () => { cancelled = true }
   }, [status])
 
   if (error) return <p className="error">{error}</p>
