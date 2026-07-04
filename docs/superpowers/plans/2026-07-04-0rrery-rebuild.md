@@ -17,7 +17,7 @@
 - Emitters are fail-open: nothing in `@0rrery/claude-code` may ever throw into or block its host process. Hook POST budget ~200ms.
 - Invalid ingest items are rejected item-by-item (valid items still land) and appended to a dead-letter JSONL.
 - Default port `7317`. Default DB `~/.0rrery/0rrery.db`. Env overrides: `ORRERY_PORT`, `ORRERY_DB`, `ORRERY_URL` (emitter target), `ORRERY_CLAUDE_DIR` (settings location, for tests).
-- No dependencies beyond: zod, react, react-dom, vite, @vitejs/plugin-react, typescript. Justify anything else before adding.
+- No runtime dependencies beyond: zod, react, react-dom, vite, @vitejs/plugin-react, typescript. Type-only dev packages (`@types/*`, `bun-types`) are allowed. Justify anything else before adding.
 - Tests run with `bun test`. Every code task is TDD: failing test first.
 - Commit after every task with an imperative message. Author identity must resolve to memmmmike (repo default is already correct).
 
