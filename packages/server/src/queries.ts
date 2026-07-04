@@ -12,6 +12,7 @@ export function listSessions(db: Database, f: SessionFilter = {}, opts: QueryOpt
   if (f.status === 'active') { where.push("status = 'active' AND last_event_at >= ?"); params.push(cutoff) }
   else if (f.status === 'stale') { where.push("status = 'active' AND last_event_at < ?"); params.push(cutoff) }
   else if (f.status === 'ended') { where.push("status = 'ended'") }
+  else if (f.status) { where.push('0 = 1') }  // unknown status value: match nothing, never fail open
   const sql = `SELECT * FROM sessions ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY last_event_at DESC LIMIT ? OFFSET ?`
   params.push(f.limit ?? 50, f.offset ?? 0)

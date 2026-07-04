@@ -76,3 +76,9 @@ test('getStats splits active and stale', () => {
   expect(getStats(store.db, OPTS)).toEqual({ sessions: 3, activeSessions: 1, staleSessions: 1, spans: 0, events: 0 })
   store.close()
 })
+
+test('unknown status value matches nothing', () => {
+  const store = staleSeeded()
+  expect(listSessions(store.db, { status: 'garbage' as any }, OPTS)).toHaveLength(0)
+  store.close()
+})
