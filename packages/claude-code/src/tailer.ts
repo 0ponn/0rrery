@@ -18,6 +18,7 @@ export function startTailer(projectsDir: string, url: string, pollMs = 2000, off
         // truncated/rotated: start over on this file
         fs.offset = 0
         fs.state = newTranscriptState()
+        dirty = true
       }
       if (size > fs.offset) {
         const r = await importTranscript(path, url, fs.offset, fs.state)

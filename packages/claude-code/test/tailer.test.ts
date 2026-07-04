@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, truncateSync, appendFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { startTailer } from '../src/tailer'
@@ -87,4 +87,24 @@ test('omitted offsetsPath stays in-memory: restart re-ingests (existing behavior
   await Bun.sleep(300)
   t2.stop(); m2.stop()
   expect(m2.batches.length).toBeGreaterThan(0)  // no snapshot → re-ingest, as today
+})
+
+test('truncation reset is persisted even when re-ingest cannot advance', async () => {
+  const projects = mkdtempSync(join(tmpdir(), '0rrery-tailt-'))
+  const proj = join(projects, '-home-x-proj')
+  mkdirSync(proj, { recursive: true })
+  const file = join(proj, 'trunc1.jsonl')
+  writeFileSync(file, line(1).replace(/persist1/g, 'trunc1'))
+  const offsetsPath = join(projects, 'tailer-offsets.json')
+  const m1 = mockIngestCounting()
+  const t1 = startTailer(projects, m1.url, 100, offsetsPath)
+  await Bun.sleep(300)
+  t1.stop(); m1.stop()
+  // truncate to a partial line (no newline) so re-ingest cannot advance, with the server DOWN
+  writeFileSync(file, '{"partial')
+  const t2 = startTailer(projects, 'http://localhost:1', 100, offsetsPath)
+  await Bun.sleep(300)
+  t2.stop()
+  const { loadOffsets } = await import('../src/offsets')
+  expect(loadOffsets(offsetsPath).get(file)!.offset).toBe(0)  // reset was flushed despite no ingest
 })
