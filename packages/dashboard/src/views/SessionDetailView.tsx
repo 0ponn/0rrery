@@ -4,6 +4,10 @@ import { buildSpanTree, tokenRollup, type SpanNode } from '../tree'
 import { fmtDuration, fmtTime, fmtTokens } from '../format'
 import type { SessionDetail, EventRow } from '../types'
 
+function prettyAttrs(attrs: string): string {
+  try { return JSON.stringify(JSON.parse(attrs), null, 2) } catch { return attrs }
+}
+
 function WaterfallRow({ node, t0, total }: { node: SpanNode; t0: number; total: number }) {
   const [open, setOpen] = useState(false)
   const s = node.span
@@ -21,7 +25,7 @@ function WaterfallRow({ node, t0, total }: { node: SpanNode; t0: number; total: 
         </span>
         <span className="wf-dur">{s.ended_at ? fmtDuration(s.ended_at - s.started_at) : 'running'}</span>
       </div>
-      {open && <pre className="attrs">{JSON.stringify(JSON.parse(s.attrs), null, 2)}</pre>}
+      {open && <pre className="attrs">{prettyAttrs(s.attrs)}</pre>}
       {node.children.map(c => <WaterfallRow key={c.span.id} node={c} t0={t0} total={total} />)}
     </>
   )
