@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { fetchSessions } from '../api'
 import { fmtTime, fmtDuration } from '../format'
-import type { SessionRow } from '../types'
+import type { ApiSession } from '../types'
 
 export function SessionsView() {
-  const [sessions, setSessions] = useState<SessionRow[]>([])
+  const [sessions, setSessions] = useState<ApiSession[]>([])
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
 
@@ -24,6 +24,7 @@ export function SessionsView() {
         <select value={status} onChange={e => setStatus(e.target.value)}>
           <option value="">all</option>
           <option value="active">active</option>
+          <option value="stale">stale</option>
           <option value="ended">ended</option>
         </select>
       </header>
@@ -35,7 +36,7 @@ export function SessionsView() {
               <td><a href={`#/session/${encodeURIComponent(s.id)}`}>{s.id.slice(0, 8)}</a></td>
               <td>{s.project ?? '—'}</td>
               <td>{s.source}</td>
-              <td><span className={`badge ${s.status}`}>{s.status}</span></td>
+              <td><span className={`badge ${s.effectiveStatus}`}>{s.effectiveStatus}</span></td>
               <td>{fmtTime(s.started_at)}</td>
               <td>{fmtDuration(s.last_event_at - s.started_at)}</td>
             </tr>

@@ -45,7 +45,7 @@ export function SessionDetailView({ id }: { id: string }) {
       if (cancelled) return
       setError('')
       setDetail(d)
-      if (d.session.status === 'active' && !ws) ws = liveSocket(id, () => load())
+      if (d.session.effectiveStatus === 'active' && !ws) ws = liveSocket(id, () => load())
     }).catch(e => {
       if (cancelled) return
       setError(String(e))
@@ -72,7 +72,7 @@ export function SessionDetailView({ id }: { id: string }) {
       <header className="viewhead">
         <h1><a href="#/">Sessions</a> / {session.id.slice(0, 8)}</h1>
         <div className="rollup">
-          <span className={`badge ${session.status}`}>{session.status}</span>
+          <span className={`badge ${session.effectiveStatus}`}>{session.effectiveStatus}</span>
           <span>{session.project ?? ''}</span>
           <span>{fmtDuration(total)}</span>
           <span>{fmtTokens(tokens.input)} in / {fmtTokens(tokens.output)} out</span>

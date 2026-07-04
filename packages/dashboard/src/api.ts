@@ -1,9 +1,8 @@
-import type { SessionRow } from '@0rrery/schema'
-import type { SessionDetail } from './types'
+import type { SessionDetail, ApiSession } from './types'
 
 const base = ''  // same origin; vite dev proxies /api
 
-export async function fetchSessions(params: { project?: string; status?: string } = {}): Promise<SessionRow[]> {
+export async function fetchSessions(params: { project?: string; status?: string } = {}): Promise<ApiSession[]> {
   const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][])
   const res = await fetch(`${base}/api/sessions?${q}`)
   if (!res.ok) throw new Error(`sessions: ${res.status}`)

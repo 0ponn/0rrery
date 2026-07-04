@@ -77,3 +77,24 @@ test('websocket live delivers ingested ops', async () => {
   ws.close()
   srv.stop()
 })
+
+test('sessions carry effectiveStatus; stale filter works end-to-end', async () => {
+  const srv = boot()
+  const now = Date.now()
+  await fetch(`${srv.url}/api/ingest`, { method: 'POST', body: JSON.stringify([
+    { op: 'session.start', sessionId: 'live1', source: 'api', ts: now },
+    { op: 'session.start', sessionId: 'old1', source: 'api', ts: now - 90 * 86400_000 + 86400_000 },  // old but inside retention
+  ]) })
+  const all = await (await fetch(`${srv.url}/api/sessions`)).json()
+  const byId = Object.fromEntries(all.map((s: any) => [s.id, s.effectiveStatus]))
+  expect(byId.live1).toBe('active')
+  expect(byId.old1).toBe('stale')
+  const stale = await (await fetch(`${srv.url}/api/sessions?status=stale`)).json()
+  expect(stale.map((s: any) => s.id)).toEqual(['old1'])
+  const detail = await (await fetch(`${srv.url}/api/sessions/old1`)).json()
+  expect(detail.session.effectiveStatus).toBe('stale')
+  const stats = await (await fetch(`${srv.url}/api/stats`)).json()
+  expect(stats.activeSessions).toBe(1)
+  expect(stats.staleSessions).toBe(1)
+  srv.stop()
+})

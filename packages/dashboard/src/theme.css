@@ -52,3 +52,4 @@ h1 a { color: var(--dim); text-decoration: none; }
 .perm-badge.allowed { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
 .perm-badge.denied { background: color-mix(in srgb, var(--err) 20%, transparent); color: var(--err); }
 .perm-badge.pending { background: color-mix(in srgb, var(--run) 20%, transparent); color: var(--run); }
+.badge.stale { background: color-mix(in srgb, var(--run) 12%, transparent); color: color-mix(in srgb, var(--run) 60%, var(--dim)); }

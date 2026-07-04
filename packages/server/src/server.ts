@@ -15,6 +15,9 @@ const numParam = (raw: string | null): number | undefined => {
   return Number.isInteger(n) && n >= 0 ? n : undefined
 }
 
+const effectiveStatus = (s: { status: string; last_event_at: number }, now: number, staleAfterMs: number) =>
+  s.status === 'ended' ? 'ended' : s.last_event_at >= now - staleAfterMs ? 'active' : 'stale'
+
 export function startServer(config: Config) {
   mkdirSync(config.dataDir, { recursive: true })
   const store = new Store(config.dbPath)
@@ -62,13 +65,15 @@ export function startServer(config: Config) {
             limit: numParam(url.searchParams.get('limit')),
             offset: numParam(url.searchParams.get('offset')),
           }
-          return json(listSessions(store.db, f, qopts))
+          return json(listSessions(store.db, f, qopts).map(s => ({ ...s, effectiveStatus: effectiveStatus(s, qopts.now, config.staleAfterMs) })))
         }
 
         const m = path.match(/^\/api\/sessions\/([^/]+)$/)
         if (m && req.method === 'GET') {
           const detail = getSessionDetail(store.db, decodeURIComponent(m[1]))
-          return detail ? json(detail) : json({ error: 'not found' }, 404)
+          return detail
+            ? json({ ...detail, session: { ...detail.session, effectiveStatus: effectiveStatus(detail.session, qopts.now, config.staleAfterMs) } })
+            : json({ error: 'not found' }, 404)
         }
 
         if (path === '/api/stats' && req.method === 'GET') return json(getStats(store.db, qopts))
