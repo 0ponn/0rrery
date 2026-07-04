@@ -95,7 +95,10 @@ export class Store {
         const existing = this.db.query('SELECT attrs, session_id FROM spans WHERE id = ?').get(op.id) as { attrs: string; session_id: string } | null
         if (existing) {
           const merged = { ...JSON.parse(existing.attrs), ...(op.attrs ?? {}) }
-          this.db.run(`UPDATE spans SET ended_at = ?, status = ?, attrs = ? WHERE id = ?`, [op.ts, op.status, JSON.stringify(merged), op.id])
+          this.db.run(
+            `UPDATE spans SET ended_at = MAX(COALESCE(ended_at, 0), ?), status = ?, attrs = ? WHERE id = ?`,
+            [op.ts, op.status, JSON.stringify(merged), op.id],
+          )
           this.touchSession(existing.session_id, op.ts)
         } else {
           // end arrived before start: orphan-tolerant placeholder under unknown session

@@ -2,9 +2,15 @@ import type { EventRow, SpanRow } from './types'
 
 export type PermStatus = 'allowed' | 'denied' | 'pending'
 
+function isDeniedOutcome(attrs: string): boolean {
+  try { return JSON.parse(attrs).outcome === 'denied' } catch { return false }
+}
+
 export function permissionStatus(events: EventRow[], spans: SpanRow[]): Map<string, PermStatus> {
   const ended = new Set(spans.filter(s => s.ended_at != null).map(s => s.id))
-  const denied = new Set(events.filter(e => e.type === 'permission.resolved' && e.span_id).map(e => e.span_id as string))
+  const denied = new Set(
+    events.filter(e => e.type === 'permission.resolved' && e.span_id && isDeniedOutcome(e.attrs)).map(e => e.span_id as string),
+  )
   const out = new Map<string, PermStatus>()
   for (const e of events) {
     if (e.type !== 'permission.requested' || !e.span_id) continue

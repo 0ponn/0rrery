@@ -83,6 +83,15 @@ test('isCompactSummary suppresses message.user and emits session.compact_summary
   expect(s.attrs.preview).toContain('continued from a previous conversation')
 })
 
+test('compact_boundary with missing uuid falls back to a session/ts id, not evt:compact:undefined', () => {
+  const state = newTranscriptState()
+  const line = JSON.stringify({ type: 'system', subtype: 'compact_boundary', compactMetadata: { trigger: 'manual', preTokens: 1, durationMs: 2 }, timestamp: '2026-07-04T12:00:00.000Z', cwd: '/p/x', sessionId: 'nouuid1' })
+  const ops = parseTranscriptLine(line, state)
+  const c = ops.find(o => o.op === 'event' && (o as any).type === 'session.compact') as any
+  expect(c.id).not.toBe('evt:compact:undefined')
+  expect(c.id).toBe(`evt:compact:nouuid1:${Date.parse('2026-07-04T12:00:00.000Z')}`)
+})
+
 test('linkage regex only fires on Agent tool results', () => {
   const state = newTranscriptState()
   const mk = (name: string, tid: string) => [

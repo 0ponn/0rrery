@@ -65,6 +65,19 @@ test('hook then transcript span.start merge: parent and attrs upgrade', () => {
   store.close()
 })
 
+test('span.end ratchets ended_at forward, never backward', () => {
+  const store = new Store(':memory:')
+  store.applyOps([{ op: 'span.start', id: 'sp2', sessionId: 's1', parentId: null, kind: 'tool', name: 'Bash', ts: 10 }])
+  store.applyOps([{ op: 'span.end', id: 'sp2', ts: 100, status: 'ok' }])
+  store.applyOps([{ op: 'span.end', id: 'sp2', ts: 50, status: 'ok' }])
+  let sp = store.db.query("SELECT * FROM spans WHERE id='sp2'").get() as any
+  expect(sp.ended_at).toBe(100)
+  store.applyOps([{ op: 'span.end', id: 'sp2', ts: 150, status: 'ok' }])
+  sp = store.db.query("SELECT * FROM spans WHERE id='sp2'").get() as any
+  expect(sp.ended_at).toBe(150)
+  store.close()
+})
+
 test('orphan span.end never creates an empty-id session', () => {
   const store = new Store(':memory:')
   store.applyOps([{ op: 'span.end', id: 'late1', ts: 5, status: 'ok' }])

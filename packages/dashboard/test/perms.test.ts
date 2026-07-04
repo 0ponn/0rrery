@@ -22,6 +22,16 @@ test('permissionStatus derives allowed/denied/pending', () => {
   expect(m.size).toBe(3)
 })
 
+test('permission.resolved with outcome granted is not treated as a denial', () => {
+  const events = [
+    evt('r1', 'permission.requested', 'tool:a'),
+    evt('g1', 'permission.resolved', 'tool:a', { outcome: 'granted' }),
+  ]
+  const spans = [span('tool:a', null)]  // still running (unended)
+  const m = permissionStatus(events, spans)
+  expect(m.get('tool:a')).toBe('pending')  // NOT 'denied'
+})
+
 test('eventDetail renders each attr shape', () => {
   expect(eventDetail(JSON.stringify({ preview: 'hi' }))).toBe('hi')
   expect(eventDetail(JSON.stringify({ message: 'note' }))).toBe('note')

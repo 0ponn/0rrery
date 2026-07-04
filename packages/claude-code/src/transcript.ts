@@ -109,7 +109,7 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
   if (line.type === 'system' && line.subtype === 'compact_boundary') {
     const md = (line.compactMetadata ?? {}) as Record<string, unknown>
     ops.push({
-      op: 'event', id: `evt:compact:${line.uuid}`, sessionId: sid, type: 'session.compact', ts,
+      op: 'event', id: `evt:compact:${line.uuid ?? `${sid}:${ts}`}`, sessionId: sid, type: 'session.compact', ts,
       attrs: { trigger: md.trigger ?? '', preTokens: md.preTokens ?? 0, durationMs: md.durationMs ?? 0 },
     })
   }
