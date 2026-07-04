@@ -45,6 +45,23 @@ test('partial trailing line is not consumed', async () => {
   stop()
 })
 
+test('emit failure does not advance offset or corrupt state', async () => {
+  const dir = mkdtempSync(join(tmpdir(), '0rrery-imp-'))
+  const file = join(dir, 's.jsonl')
+  writeFileSync(file, line1 + '\n')
+  const state = newTranscriptState()
+  const fail = await importTranscript(file, 'http://localhost:1', 0, state)
+  expect(fail.emitted).toBe(false)
+  expect(fail.bytesRead).toBe(0)
+  // retry against a live server must re-emit everything incl. session.start
+  const { batches, url, stop } = mockIngest()
+  const ok = await importTranscript(file, url, fail.bytesRead, state)
+  expect(ok.emitted).toBe(true)
+  expect(ok.ops).toBe(2)
+  expect(batches[0].some((o: any) => o.op === 'session.start')).toBe(true)
+  stop()
+})
+
 test('empty increment emits nothing and succeeds', async () => {
   const { batches, url, stop } = mockIngest()
   const dir = mkdtempSync(join(tmpdir(), '0rrery-imp-'))

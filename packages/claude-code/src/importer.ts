@@ -13,8 +13,8 @@ export async function importTranscript(
     const size = fstatSync(fd).size
     if (size <= fromByte) return { ops: 0, emitted: true, bytesRead: fromByte }
     const buf = Buffer.alloc(size - fromByte)
-    readSync(fd, buf, 0, buf.length, fromByte)
-    text = buf.toString('utf8')
+    const n = readSync(fd, buf, 0, buf.length, fromByte)
+    text = buf.subarray(0, n).toString('utf8')
   } finally {
     closeSync(fd)
   }
@@ -25,7 +25,13 @@ export async function importTranscript(
   const complete = text.slice(0, lastNewline)
   const consumedBytes = Buffer.byteLength(text.slice(0, lastNewline + 1))
 
+  // parsing mutates state; snapshot so a failed emit can be retried cleanly
+  const sessionStartedBefore = state.sessionStarted
   const ops = complete.split('\n').filter(Boolean).flatMap(l => parseTranscriptLine(l, state))
   const emitted = await emitOps(url, ops, 5000)
+  if (!emitted) {
+    state.sessionStarted = sessionStartedBefore
+    return { ops: ops.length, emitted: false, bytesRead: fromByte }
+  }
   return { ops: ops.length, emitted, bytesRead: fromByte + consumedBytes }
 }
