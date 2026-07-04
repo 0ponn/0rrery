@@ -41,3 +41,22 @@ test('malformed timestamp falls back to a valid ts', () => {
   expect(ops.length).toBeGreaterThan(0)
   for (const op of ops) expect(Number.isInteger((op as any).ts)).toBe(true)
 })
+
+const agentLines = (await Bun.file(new URL('../fixtures/fix1/subagents/agent-a1b2c3d4e5.jsonl', import.meta.url)).text()).split('\n').filter(Boolean)
+
+test('agent file: agent span, parenting, no session.start, attributed events', () => {
+  const state = newTranscriptState()
+  const ops = agentLines.flatMap(l => parseTranscriptLine(l, state))
+  expect(ops.filter(o => o.op === 'session.start')).toHaveLength(0)
+  const llm = ops.find(o => o.op === 'span.start' && (o as any).kind === 'llm') as any
+  expect(llm).toMatchObject({ id: 'llm:msg_a1', parentId: 'agent:a1b2c3d4e5' })
+  const userEvt = ops.find(o => o.op === 'event' && (o as any).type === 'message.user') as any
+  expect(userEvt.attrs.agentId).toBe('a1b2c3d4e5')
+  expect(state.agentId).toBe('a1b2c3d4e5')
+  // first line lacks attributionAgent → placeholder emitted, then upgraded by second line
+  const starts = ops.filter(o => o.op === 'span.start' && (o as any).id === 'agent:a1b2c3d4e5') as any[]
+  expect(starts).toHaveLength(2)
+  expect(starts[0]).toMatchObject({ id: 'agent:a1b2c3d4e5', sessionId: 'fix1', name: '(unknown)', parentId: null })
+  expect(starts[0].ts).toBe(Date.parse('2026-07-04T12:00:03.000Z'))
+  expect(starts[1]).toMatchObject({ name: 'general-purpose', ts: Date.parse('2026-07-04T12:00:03.000Z') })
+})

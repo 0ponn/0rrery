@@ -1,11 +1,19 @@
 import type { IngestOp } from '@0rrery/schema'
 
-export type TranscriptState = { sessionStarted: boolean }
-export function newTranscriptState(): TranscriptState { return { sessionStarted: false } }
+export type TranscriptState = {
+  sessionStarted: boolean
+  agentStarted: boolean
+  agentNamed: boolean
+  agentId: string | null
+  agentFirstTs: number | null
+}
+export function newTranscriptState(): TranscriptState {
+  return { sessionStarted: false, agentStarted: false, agentNamed: false, agentId: null, agentFirstTs: null }
+}
 
 type Line = {
   type?: string; sessionId?: string; cwd?: string; gitBranch?: string; timestamp?: string
-  uuid?: string; isSidechain?: boolean
+  uuid?: string; isSidechain?: boolean; agentId?: string; attributionAgent?: string
   message?: { id?: string; model?: string; role?: string; content?: unknown; usage?: Record<string, number> }
 }
 
@@ -18,7 +26,20 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
   const sid = line.sessionId
   if (!sid) return []
 
-  if (!state.sessionStarted && line.cwd) {
+  const agentId = line.agentId ?? state.agentId
+
+  if (line.agentId) {
+    state.agentId = line.agentId
+    state.agentFirstTs ??= ts
+    if (!state.agentStarted || (!state.agentNamed && line.attributionAgent)) {
+      state.agentStarted = true
+      if (line.attributionAgent) state.agentNamed = true
+      ops.push({
+        op: 'span.start', id: `agent:${line.agentId}`, sessionId: sid, parentId: null, kind: 'agent',
+        name: line.attributionAgent ?? '(unknown)', ts: state.agentFirstTs, attrs: {},
+      })
+    }
+  } else if (!state.sessionStarted && line.cwd) {
     state.sessionStarted = true
     ops.push({
       op: 'session.start', sessionId: sid, source: 'claude-code',
@@ -27,11 +48,12 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
   }
 
   const side = line.isSidechain ? { sidechain: true } : {}
+  const agentAttr = agentId ? { agentId } : {}
 
   if (line.type === 'user' && typeof line.message?.content === 'string') {
     ops.push({
       op: 'event', id: `evt:msg:${line.uuid}`, sessionId: sid, type: 'message.user', ts,
-      attrs: { preview: line.message.content.slice(0, 200), ...side },
+      attrs: { preview: line.message.content.slice(0, 200), ...side, ...agentAttr },
     })
   }
 
@@ -39,7 +61,7 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
     const m = line.message
     const u = m.usage ?? {}
     ops.push({
-      op: 'span.start', id: `llm:${m.id}`, sessionId: sid, parentId: null, kind: 'llm',
+      op: 'span.start', id: `llm:${m.id}`, sessionId: sid, parentId: agentId ? `agent:${agentId}` : null, kind: 'llm',
       name: m.model ?? '(model)', ts,
       attrs: {
         input_tokens: u.input_tokens ?? 0, output_tokens: u.output_tokens ?? 0,
@@ -58,7 +80,7 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
       } else if (block?.type === 'text' && block.text?.trim()) {
         ops.push({
           op: 'event', id: `evt:msg:${m.id}:${i}`, sessionId: sid, type: 'message.assistant', ts,
-          attrs: { preview: block.text.slice(0, 200), ...side },
+          attrs: { preview: block.text.slice(0, 200), ...side, ...agentAttr },
         })
       }
     })
