@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test'
-import { mkdtempSync, existsSync } from 'node:fs'
+import { mkdtempSync, existsSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -16,15 +16,20 @@ test('npm pack artifact installs globally and serves the dashboard', async () =>
   expect(existsSync(tarball)).toBe(true)
 
   const prefix = mkdtempSync(join(tmpdir(), '0rrery-prefix-'))
-  r = Bun.spawnSync(['bun', 'install', '-g', tarball], { env: { ...process.env, BUN_INSTALL: prefix } })
+  // Stop bun's upward package.json walk at the prefix: without this, bun install -g
+  // records the tarball in the nearest ancestor package.json (the user's real global
+  // manifest when tmpdir lives under $HOME), which flakes reruns with DependencyLoop.
+  writeFileSync(join(prefix, 'package.json'), '{}\n')
+  r = Bun.spawnSync(['bun', 'install', '-g', tarball], { cwd: prefix, env: { ...process.env, BUN_INSTALL: prefix, HOME: prefix } })
   expect(r.exitCode).toBe(0)
   const bin = join(prefix, 'bin', '0rrery')
   expect(existsSync(bin)).toBe(true)
 
   const scratch = mkdtempSync(join(tmpdir(), '0rrery-data-'))
   const proc = Bun.spawn([bin, 'serve'], {
+    cwd: prefix,
     env: {
-      ...process.env, BUN_INSTALL: prefix,
+      ...process.env, BUN_INSTALL: prefix, HOME: prefix,
       ORRERY_PORT: '7411', ORRERY_DATA_DIR: scratch, ORRERY_DB: join(scratch, 't.db'), ORRERY_CLAUDE_DIR: scratch,
     },
     stdout: 'pipe', stderr: 'pipe',
