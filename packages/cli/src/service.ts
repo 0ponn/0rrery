@@ -51,8 +51,12 @@ function run(argv: string[]): boolean {
   return r.exitCode === 0
 }
 
-export function runService(sub: string, platform: string = process.platform): boolean {
-  const file = servicePath(platform)
+export function runService(
+  sub: string,
+  platform: string = process.platform,
+  exec: (argv: string[]) => boolean = run,
+  file: string | null = servicePath(platform),
+): boolean {
   if (!file) {
     console.error('0rrery service: unsupported platform (linux and macOS only)')
     return false
@@ -60,26 +64,27 @@ export function runService(sub: string, platform: string = process.platform): bo
   const linux = platform === 'linux'
   if (sub === 'install') {
     const bin = resolveBin()
+    if (!linux && existsSync(file)) exec(['launchctl', 'unload', '-w', file])
     mkdirSync(dirname(file), { recursive: true })
     writeFileSync(file, linux ? systemdUnit([...bin, 'serve'].join(' ')) : launchdPlist([...bin, 'serve']))
     const ok = linux
-      ? run(['systemctl', '--user', 'daemon-reload']) && run(['systemctl', '--user', 'enable', '--now', '0rrery'])
-      : run(['launchctl', 'load', '-w', file])
+      ? exec(['systemctl', '--user', 'daemon-reload']) && exec(['systemctl', '--user', 'enable', '--now', '0rrery'])
+      : exec(['launchctl', 'load', '-w', file])
     console.log(ok ? `service installed and started (${file})` : `wrote ${file} but starting failed — check the output above`)
     return ok
   }
   if (sub === 'uninstall') {
     if (!existsSync(file)) { console.log('no service installed'); return true }
     const ok = linux
-      ? run(['systemctl', '--user', 'disable', '--now', '0rrery'])
-      : run(['launchctl', 'unload', '-w', file])
+      ? exec(['systemctl', '--user', 'disable', '--now', '0rrery'])
+      : exec(['launchctl', 'unload', '-w', file])
     rmSync(file, { force: true })
-    if (linux) run(['systemctl', '--user', 'daemon-reload'])
+    if (linux) exec(['systemctl', '--user', 'daemon-reload'])
     console.log(ok ? 'service stopped and removed' : `removed ${file}; stopping reported an error above`)
     return ok
   }
   if (sub === 'status') {
-    return linux ? run(['systemctl', '--user', 'status', '0rrery', '--no-pager']) : run(['launchctl', 'list', 'com.0pon.0rrery'])
+    return linux ? exec(['systemctl', '--user', 'status', '0rrery', '--no-pager']) : exec(['launchctl', 'list', 'com.0pon.0rrery'])
   }
   console.error('usage: 0rrery service <install|uninstall|status>')
   return false
