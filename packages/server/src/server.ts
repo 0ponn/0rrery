@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { parseOps, type IngestOp, type Rejected } from '@0rrery/schema'
 import { Store } from './store'
 import { listSessions, getSessionDetail, getStats, type SessionFilter } from './queries'
+import { spendSeries, toolHealth, projectRollups, sprawlMap, externalSurface, fsFootprint, searchSessions } from './insights'
 import { LiveBus } from './livebus'
 import type { Config } from './config'
 
@@ -58,14 +59,37 @@ export function startServer(config: Config) {
           return json({ accepted: ok.length, rejected })
         }
 
-        if (path === '/api/sessions' && req.method === 'GET') {
-          const f: SessionFilter = {
-            project: url.searchParams.get('project') ?? undefined,
-            status: (url.searchParams.get('status') as SessionFilter['status']) ?? undefined,
-            limit: numParam(url.searchParams.get('limit')),
-            offset: numParam(url.searchParams.get('offset')),
+        const insightsMatch = path.match(/^\/api\/insights\/(spend|tool-health|projects|sprawl|surface|footprint)$/)
+        if (insightsMatch && req.method === 'GET') {
+          const bad = (name: string) => json({ error: `invalid ${name}` }, 400)
+          const rawFrom = url.searchParams.get('from'), rawTo = url.searchParams.get('to')
+          const from = numParam(rawFrom), to = numParam(rawTo)
+          if (rawFrom !== null && from === undefined) return bad('from')
+          if (rawTo !== null && to === undefined) return bad('to')
+          const f = { project: url.searchParams.get('project') ?? undefined, from, to }
+          switch (insightsMatch[1]) {
+            case 'spend': return json(spendSeries(store.db, f))
+            case 'tool-health': return json(toolHealth(store.db, f))
+            case 'projects': return json(projectRollups(store.db, f))
+            case 'sprawl': return json(sprawlMap(store.db, f))
+            case 'surface': return json(externalSurface(store.db, f))
+            case 'footprint': return json(fsFootprint(store.db, f))
           }
-          return json(listSessions(store.db, f, qopts).map(s => ({ ...s, effectiveStatus: effectiveStatus(s, qopts.now, config.staleAfterMs) })))
+        }
+
+        if (path === '/api/sessions' && req.method === 'GET') {
+          const rawFrom = url.searchParams.get('from'), rawTo = url.searchParams.get('to')
+          const from = numParam(rawFrom), to = numParam(rawTo)
+          if (rawFrom !== null && from === undefined) return json({ error: 'invalid from' }, 400)
+          if (rawTo !== null && to === undefined) return json({ error: 'invalid to' }, 400)
+          const q = url.searchParams.get('q') ?? undefined
+          const project = url.searchParams.get('project') ?? undefined
+          const status = url.searchParams.get('status') ?? undefined
+          const limit = numParam(url.searchParams.get('limit'))
+          const rows = (q !== undefined || from !== undefined || to !== undefined)
+            ? searchSessions(store.db, { q, project, status, from, to, limit }, qopts)
+            : listSessions(store.db, { project, status: status as SessionFilter['status'], limit, offset: numParam(url.searchParams.get('offset')) }, qopts)
+          return json(rows.map(s => ({ ...s, effectiveStatus: effectiveStatus(s, qopts.now, config.staleAfterMs) })))
         }
 
         const m = path.match(/^\/api\/sessions\/([^/]+)$/)

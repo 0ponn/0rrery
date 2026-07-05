@@ -43,3 +43,39 @@ test('fixture transcript → import → query shows full trace', async () => {
 
   srv.stop()
 })
+
+test('insights endpoints answer over imported fixture data', async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), '0rrery-e2e-ins-'))
+  const srv = startServer(loadConfig({ port: 0, dbPath: ':memory:', dashboardDist: null, dataDir }))
+  const fixture = new URL('../packages/claude-code/fixtures/fix1.jsonl', import.meta.url).pathname
+  const { importSession } = await import('@0rrery/claude-code')
+  await importSession(fixture, srv.url, { finalize: true })
+
+  const get = (p: string) => fetch(`${srv.url}${p}`).then(r => r.json() as any)
+  const spend = await get('/api/insights/spend')
+  expect(spend.length).toBeGreaterThan(0)
+  expect(spend[0]).toHaveProperty('est_cost')
+
+  const health = await get('/api/insights/tool-health')
+  expect(health.find((t: any) => t.name === 'Bash')?.denials).toBe(1)  // the fixture denial
+
+  const projects = await get('/api/insights/projects')
+  expect(projects.find((p: any) => p.project === 'myproj')?.sessions).toBe(1)
+
+  const sprawl = await get('/api/insights/sprawl')
+  expect(sprawl.nodes.some((n: any) => n.id === 'main')).toBe(true)
+  expect(sprawl.edges.length).toBeGreaterThan(0)
+
+  expect(await get('/api/insights/surface')).toHaveProperty('domains')
+  expect(await get('/api/insights/footprint')).toHaveProperty('dirs')
+
+  // filters + search + validation
+  const none = await get('/api/insights/spend?project=nope')
+  expect(none).toEqual([])
+  const found = await fetch(`${srv.url}/api/sessions?q=list the files`).then(r => r.json() as any)
+  expect(found.map((s: any) => s.id)).toContain('fix1')
+  const bad = await fetch(`${srv.url}/api/insights/spend?from=banana`)
+  expect(bad.status).toBe(400)
+
+  srv.stop()
+})
