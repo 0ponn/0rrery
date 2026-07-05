@@ -28,11 +28,12 @@ export function TopologyTab({ spans }: { spans: SpanRow[] }) {
   const [hover, setHover] = useState<string | null>(null)
 
   const byId = useMemo(() => new Map(laid.map(n => [n.id, n])), [laid])
+
+  if (nodes.length <= 1) return <p className="empty">No topology yet — spans appear here as the session runs.</p>
+
   const width = Math.max(...laid.map(n => n.x)) + NODE_W + PAD * 2
   const height = Math.max(...laid.map(n => n.y)) + NODE_H + PAD * 2
   const hovered = hover ? edges.find(e => `${e.from}→${e.to}` === hover) : null
-
-  if (nodes.length <= 1) return <p className="empty">No topology yet — spans appear here as the session runs.</p>
 
   return (
     <div className="topo-wrap">
@@ -48,17 +49,22 @@ export function TopologyTab({ spans }: { spans: SpanRow[] }) {
             const a = byId.get(e.from), b = byId.get(e.to)
             if (!a || !b) return null
             const key = `${e.from}→${e.to}`
+            const d = edgePath(a, b)
             return (
-              <path key={key} d={edgePath(a, b)} fill="none"
-                className={`topo-edge ${hover === key ? 'hot' : ''}`}
-                strokeWidth={Math.min(6, Math.max(1, Math.sqrt(e.calls)))}
-                onMouseEnter={() => setHover(key)} onMouseLeave={() => setHover(null)}>
-                <title>{edgeTip(e)}</title>
-              </path>
+              <g key={key}>
+                <path d={d} fill="none" pointerEvents="none"
+                  className={`topo-edge ${hover === key ? 'hot' : ''}`}
+                  strokeWidth={Math.min(6, Math.max(1, Math.sqrt(e.calls)))} />
+                <path d={d} fill="none" stroke="transparent" strokeWidth={12} cursor="pointer"
+                  onMouseEnter={() => setHover(key)} onMouseLeave={() => setHover(null)}>
+                  <title>{edgeTip(e)}</title>
+                </path>
+              </g>
             )
           })}
           {laid.map(n => (
             <g key={n.id} transform={`translate(${n.x + PAD}, ${n.y + PAD})`}>
+              <title>{n.label}</title>
               <rect className="topo-node" width={NODE_W} height={NODE_H} rx={6} />
               <rect className={`topo-accent accent-${n.kind}`} width={4} height={NODE_H} rx={2} />
               <text className="topo-label" x={12} y={NODE_H / 2 + 4}>
