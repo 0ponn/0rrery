@@ -3,6 +3,7 @@ import { fetchSession, liveSocket } from '../api'
 import { buildSpanTree, tokenRollup, type SpanNode } from '../tree'
 import { fmtDuration, fmtTime, fmtTokens } from '../format'
 import { permissionStatus, eventDetail, type PermStatus } from '../perms'
+import { TopologyTab } from './TopologyTab'
 import type { SessionDetail, EventRow } from '../types'
 
 function prettyAttrs(attrs: string): string {
@@ -36,7 +37,7 @@ function WaterfallRow({ node, t0, total, perms }: { node: SpanNode; t0: number; 
 export function SessionDetailView({ id }: { id: string }) {
   const [detail, setDetail] = useState<SessionDetail | null>(null)
   const [error, setError] = useState('')
-  const [tab, setTab] = useState<'trace' | 'events'>('trace')
+  const [tab, setTab] = useState<'trace' | 'events' | 'topology'>('trace')
 
   useEffect(() => {
     let ws: WebSocket | null = null
@@ -84,6 +85,7 @@ export function SessionDetailView({ id }: { id: string }) {
       <div className="tabs">
         <button className={tab === 'trace' ? 'active' : ''} onClick={() => setTab('trace')}>Trace ({spans.length})</button>
         <button className={tab === 'events' ? 'active' : ''} onClick={() => setTab('events')}>Events ({events.length})</button>
+        <button className={tab === 'topology' ? 'active' : ''} onClick={() => setTab('topology')}>Topology</button>
       </div>
       {tab === 'trace' && (
         <div className="waterfall">
@@ -105,6 +107,7 @@ export function SessionDetailView({ id }: { id: string }) {
           </tbody>
         </table>
       )}
+      {tab === 'topology' && <TopologyTab spans={spans} />}
     </section>
   )
 }
