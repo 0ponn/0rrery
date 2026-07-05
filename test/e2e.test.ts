@@ -35,5 +35,11 @@ test('fixture transcript → import → query shows full trace', async () => {
   const denied = detail.spans.find((s: any) => s.id === 'tool:toolu_dn1')
   expect(denied).toMatchObject({ status: 'error', ended_at: Date.parse('2026-07-04T12:00:09.000Z') })
 
+  for (const id of ['tool:toolu_01', 'tool:toolu_ag1']) {
+    const t = detail.spans.find((s: any) => s.id === id)
+    expect(t).toMatchObject({ status: 'ok' })
+    expect(t.ended_at).not.toBeNull()
+  }
+
   srv.stop()
 })

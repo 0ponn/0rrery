@@ -118,11 +118,13 @@ test('user rejection marker emits denial event and closes the span', () => {
   expect(end).toMatchObject({ id: 'tool:toolu_dn1', status: 'error', attrs: { denied: true } })
 })
 
-test('ordinary error toolUseResult strings emit no denial ops', () => {
+test('ordinary error toolUseResult strings emit a generic end, no denial ops', () => {
   for (const tur of ['Error: Exit code 1', 'Error: File has not been read yet. Read it first before writing to it.', { stdout: 'x' }, undefined]) {
     const ops = parseTranscriptLine(denyLine(tur), newTranscriptState())
     expect(ops.some(o => o.op === 'event' && (o as any).type === 'permission.resolved')).toBe(false)
-    expect(ops.some(o => o.op === 'span.end')).toBe(false)
+    const end = ops.find(o => o.op === 'span.end') as any
+    expect(end).toMatchObject({ id: 'tool:toolu_dn1', status: 'error' })
+    expect((end.attrs ?? {}).denied).toBeUndefined()
   }
 })
 
@@ -152,4 +154,39 @@ test('transcript tool_use classifies mcp tools as kind mcp', () => {
   const plain = ops.find(o => o.op === 'span.start' && (o as any).id === 'tool:tu_plain') as any
   expect(mcp.kind).toBe('mcp')
   expect(plain.kind).toBe('tool')
+})
+
+const resLine = (blocks: any[]) => JSON.stringify({
+  type: 'user', message: { role: 'user', content: blocks },
+  uuid: 'ur1', timestamp: '2026-07-05T13:00:00.000Z', cwd: '/p/x', sessionId: 'te1', gitBranch: 'main',
+})
+
+test('tool_result closes its tool span with status ok', () => {
+  const ops = parseTranscriptLine(resLine([{ tool_use_id: 'toolu_ok1', type: 'tool_result', content: 'done' }]), newTranscriptState())
+  const end = ops.find(o => o.op === 'span.end') as any
+  expect(end).toMatchObject({ id: 'tool:toolu_ok1', status: 'ok' })
+})
+
+test('is_error tool_result closes its span with status error and no denial ops', () => {
+  const ops = parseTranscriptLine(resLine([{ tool_use_id: 'toolu_er1', type: 'tool_result', is_error: true, content: 'Error: Exit code 1' }]), newTranscriptState())
+  const end = ops.find(o => o.op === 'span.end') as any
+  expect(end).toMatchObject({ id: 'tool:toolu_er1', status: 'error' })
+  expect((end.attrs ?? {}).denied).toBeUndefined()
+  expect(ops.some(o => o.op === 'event' && (o as any).type === 'permission.resolved')).toBe(false)
+})
+
+test('one line with two tool_results closes both spans', () => {
+  const ops = parseTranscriptLine(resLine([
+    { tool_use_id: 'toolu_m1', type: 'tool_result', content: 'a' },
+    { tool_use_id: 'toolu_m2', type: 'tool_result', is_error: true, content: 'b' },
+  ]), newTranscriptState())
+  const ends = ops.filter(o => o.op === 'span.end') as any[]
+  expect(ends.map(e => [e.id, e.status])).toEqual([['tool:toolu_m1', 'ok'], ['tool:toolu_m2', 'error']])
+})
+
+test('denied blocks get exactly one span.end (the denial one)', () => {
+  const ops = parseTranscriptLine(denyLine('User rejected tool use'), newTranscriptState())
+  const ends = ops.filter(o => o.op === 'span.end') as any[]
+  expect(ends).toHaveLength(1)
+  expect(ends[0].attrs).toMatchObject({ denied: true })
 })
