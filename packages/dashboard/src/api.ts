@@ -21,7 +21,10 @@ export async function fetchSession(id: string): Promise<SessionDetail> {
   return res.json()
 }
 
-export const fetchFleet = (): Promise<FleetCard[]> => fetch('/api/fleet').then(r => r.json())
+export const fetchFleet = (): Promise<FleetCard[]> => fetch('/api/fleet').then(async r => {
+  if (!r.ok) throw new Error((await r.json().catch(() => null))?.error ?? `HTTP ${r.status}`)
+  return r.json()
+})
 
 export function liveSocket(session: string, onOps: (ops: unknown[]) => void): WebSocket {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
