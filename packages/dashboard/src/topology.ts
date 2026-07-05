@@ -14,16 +14,17 @@ function parseAttrs(attrs: string): Record<string, unknown> {
 
 export function buildTopology(spans: SpanRow[]): { nodes: TopoNode[]; edges: TopoEdge[] } {
   const byId = new Map(spans.map(s => [s.id, s]))
-  const agentType = new Map<string, string>()  // agent span id → type label
-  for (const s of spans) if (s.kind === 'agent') agentType.set(s.id, s.name)
 
   // actor class of the ancestor that "owns" a span: nearest agent ancestor's type, else main
   const ownerOf = (s: SpanRow): string => {
+    const visited = new Set<string>([s.id])
     let cur: SpanRow | undefined = s
     while (cur?.parent_id) {
+      if (visited.has(cur.parent_id)) return 'main'
+      visited.add(cur.parent_id)
       const p = byId.get(cur.parent_id)
       if (!p) break
-      if (p.kind === 'agent') return `agent:${agentType.get(p.id) ?? p.name}`
+      if (p.kind === 'agent') return `agent:${p.name}`
       cur = p
     }
     return 'main'

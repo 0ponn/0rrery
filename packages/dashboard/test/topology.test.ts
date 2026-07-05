@@ -73,6 +73,15 @@ test('layoutTopology: columns, determinism, barycenter pulls callees toward call
   laid.forEach(n => { expect(Number.isFinite(n.x) && Number.isFinite(n.y)).toBe(true) })
 })
 
+test('parent cycles resolve to main instead of hanging', () => {
+  const cyclic = [
+    span('llm:x', 'tool:y', 'llm', 'm'),
+    span('tool:y', 'llm:x', 'tool', 'T'),
+  ]
+  const { edges } = buildTopology(cyclic)
+  expect(edges.some(e => e.from === 'main' && e.to === 'llm:m')).toBe(true)
+})
+
 test('empty spans → just main with no edges', () => {
   const { nodes, edges } = buildTopology([])
   expect(nodes).toEqual([{ id: 'main', kind: 'main', label: 'main', count: 1 }])
