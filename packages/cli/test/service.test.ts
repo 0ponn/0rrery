@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { systemdUnit, launchdPlist, servicePath, runService } from '../src/service'
+import { systemdUnit, launchdPlist, servicePath, runService, resolveBin } from '../src/service'
 
 test('systemd unit content', () => {
   const u = systemdUnit('/home/dev/.bun/bin/0rrery serve')
@@ -53,4 +53,12 @@ test('darwin re-install unloads the existing agent first', () => {
   const calls2: string[][] = []
   runService('install', 'darwin', a => { calls2.push(a); return true }, fresh)
   expect(calls2.some(a => a[1] === 'unload')).toBe(false)
+})
+
+test('resolveBin always names the interpreter absolutely (no shebang/PATH reliance)', () => {
+  const bin = resolveBin()
+  expect(bin.length).toBe(2)
+  expect(bin[0].startsWith('/')).toBe(true)
+  expect(bin[0]).toBe(process.execPath)
+  expect(bin[1].startsWith('/')).toBe(true)
 })

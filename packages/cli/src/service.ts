@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -43,7 +43,8 @@ export function servicePath(platform: string = process.platform): string | null 
 
 export function resolveBin(): string[] {
   const onPath = Bun.which('0rrery')
-  return onPath ? [onPath] : [process.execPath, Bun.main]
+  const entry = onPath ? realpathSync(onPath) : Bun.main
+  return [process.execPath, entry]
 }
 
 function run(argv: string[]): boolean {
