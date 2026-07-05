@@ -291,3 +291,14 @@ test('fleetView: stale pending request outside the window is dropped', () => {
   ])
   expect(fleetView(s.db, FOPTS).find(c => c.id === 'fG')!.pending_permissions).toEqual([])
 })
+
+test('fleetView: dangling open span the session moved past is not current', () => {
+  const s = fleetSeeded([
+    { op: 'session.start', sessionId: 'fH', source: 'claude-code', project: 'theta', ts: NOW - 8_000_000 },
+    { op: 'span.start', id: 'tool:fh1', sessionId: 'fH', parentId: null, kind: 'tool', name: 'Bash', ts: NOW - 7_000_000, attrs: {} },  // dangling, never ended
+    { op: 'event', id: 'evt:fh', sessionId: 'fH', type: 'message.user', ts: NOW - 5_000, attrs: {} },  // session moved on
+  ])
+  const card = fleetView(s.db, FOPTS).find(c => c.id === 'fH')!
+  expect(card.current).toBeNull()
+  expect(card.stuck).toBe(false)
+})

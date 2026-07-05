@@ -276,9 +276,12 @@ export function fleetView(db: Database, opts: { now: number; staleAfterMs: numbe
     WHERE status = 'active' AND last_event_at >= ? ORDER BY last_event_at DESC`)
     .all(opts.now - FLEET_HORIZON_MS) as any[]
   const cards = sessions.map(s => {
+    // Ignore dangling open spans the session has moved past: a genuinely running
+    // tool has started_at at/near last_event_at (its own start bumped it).
     const open = db.query(`SELECT kind, name, started_at FROM spans
       WHERE session_id = ? AND ended_at IS NULL AND kind IN ('tool', 'mcp', 'agent')
-      ORDER BY started_at DESC LIMIT 1`).get(s.id) as any
+        AND started_at >= ?
+      ORDER BY started_at DESC LIMIT 1`).get(s.id, s.last_event_at - PENDING_WINDOW_MS) as any
     const pend = db.query(`SELECT COALESCE(sp.name, '?') tool, e.ts ts FROM events e
       LEFT JOIN spans sp ON sp.id = e.span_id
       WHERE e.session_id = ? AND e.type = 'permission.requested'
