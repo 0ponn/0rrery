@@ -26,7 +26,7 @@ test('init --no-service installs hooks and imports history', async () => {
     const exitCode = await proc.exited
     expect(exitCode).toBe(0)
     const settings = JSON.parse(readFileSync(join(claudeDir, 'settings.json'), 'utf8'))
-    expect(settings.hooks.PreToolUse.some((e: any) => e.hooks.some((h: any) => h.command === '0rrery hook'))).toBe(true)
+    expect(settings.hooks.PreToolUse.some((e: any) => e.hooks.some((h: any) => h.command.endsWith(' hook') && h.command.includes('0rrery')))).toBe(true)
     const sessions = await fetch('http://127.0.0.1:7413/api/sessions').then(x => x.json()) as any[]
     expect(sessions.some(s => s.id === 'fix1')).toBe(true)
   } finally {

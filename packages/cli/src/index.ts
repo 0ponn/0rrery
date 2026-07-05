@@ -6,7 +6,7 @@ import { startServer, loadConfig } from '@0rrery/server'
 import { startTailer, importSession, mapHookEvent, emitOps, type HookInput } from '@0rrery/claude-code'
 import { installHooks } from './install'
 import { importAll } from './sweep'
-import { runService } from './service'
+import { runService, resolveBin } from './service'
 
 const [cmd, arg] = process.argv.slice(2)
 const url = process.env.ORRERY_URL ?? 'http://localhost:7317'
@@ -17,7 +17,7 @@ function runInstall(): boolean {
     console.warn(`${claudeDir()} not found — Claude Code not present, skipping hooks`)
     return false
   }
-  const { settingsPath, added, removed } = installHooks(claudeDir(), '0rrery hook')
+  const { settingsPath, added, removed } = installHooks(claudeDir(), [...resolveBin(), 'hook'].join(' '))
   const parts = []
   if (added.length) parts.push(`installed hooks (${added.join(', ')})`)
   if (removed) parts.push(`replaced ${removed} legacy entr${removed === 1 ? 'y' : 'ies'}`)

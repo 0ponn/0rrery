@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test'
-import { mkdtempSync, mkdirSync, copyFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, copyFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { importAll } from '../src/sweep'
@@ -28,4 +28,16 @@ test('importAll on an empty dir is a clean no-op', async () => {
   const dir = mkdtempSync(join(tmpdir(), '0rrery-sweep-'))
   const r = await importAll(dir, 'http://127.0.0.1:1')
   expect(r).toEqual({ ok: 0, failed: 0, total: 0 })
+})
+
+test('install writes an absolute, resolvable hook command', () => {
+  const dir = mkdtempSync(join(tmpdir(), '0rrery-cli-'))
+  const r = Bun.spawnSync(['bun', cli, 'install'], { env: { ...process.env, ORRERY_CLAUDE_DIR: dir } })
+  expect(r.exitCode).toBe(0)
+  const s = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))
+  const cmd = s.hooks.PreToolUse.flatMap((e: any) => e.hooks)[0].command
+  expect(cmd.endsWith(' hook')).toBe(true)
+  const exe = cmd.slice(0, -' hook'.length).split(' ')[0]
+  expect(exe.startsWith('/')).toBe(true)
+  expect(existsSync(exe)).toBe(true)
 })

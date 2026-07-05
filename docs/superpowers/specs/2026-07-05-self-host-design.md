@@ -43,6 +43,8 @@ New CLI subcommand that runs the existing hook entry (stdin → POST) — a thin
 
 Migration/dedupe: before adding, `install` removes any existing hook entry whose command contains `0rrery` (matches both the new form and this repo's absolute paths, which contain `0rrery`) — so re-running install never stacks duplicate posts, and this box's legacy entries get replaced. Requires the global bin on PATH; README states global install is required for hooks (bunx alone is fine for `serve`/`import`).
 
+**Amended 2026-07-05 (final review):** the literal `0rrery hook` command proved wrong in the live rollout — hook exec environments don't reliably have `~/.bun/bin` on PATH, and the fail-open design made the resulting ingestion loss invisible (hook-only event types flatlined in the DB while the tailer kept coarse data flowing). `install` now writes the resolved absolute command (`Bun.which('0rrery') ?? execPath+entry`, + ` hook`). settings.json is per-machine, so the literal string's upgrade-portability bought nothing; bun's global bin path is stable across upgrades. Re-run `0rrery install` after moving an install.
+
 ### 3. `0rrery service install|uninstall|status`
 
 - **Linux:** writes `~/.config/systemd/user/0rrery.service` (Description, `ExecStart=<abs bin> serve`, `Restart=on-failure`, `WantedBy=default.target`), then `systemctl --user daemon-reload && enable --now`. `uninstall`: disable --now + remove file + daemon-reload. `status`: `systemctl --user is-active` passthrough plus the port from config.
