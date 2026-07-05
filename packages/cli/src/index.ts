@@ -77,6 +77,35 @@ switch (cmd) {
     process.exit(runService(arg ?? '') ? 0 : 1)
     break
   }
+  case 'init': {
+    const flags = new Set(process.argv.slice(3))
+    let failed = false
+    if (!flags.has('--no-hooks')) {
+      console.log('› hooks')
+      try { runInstall() } catch (err) { console.error(err instanceof Error ? err.message : String(err)); failed = true }
+    }
+    if (!flags.has('--no-service')) {
+      console.log('› service')
+      if (!runService('install')) console.log('  (service setup failed or unsupported — run `0rrery serve` manually)')
+    }
+    if (!flags.has('--no-import')) {
+      console.log('› importing history')
+      const projectsDir = join(claudeDir(), 'projects')
+      if (existsSync(projectsDir)) {
+        for (let i = 0; i < 30; i++) {
+          if (await fetch(`${url}/api/sessions`).then(x => x.ok).catch(() => false)) break
+          await Bun.sleep(200)
+        }
+        const r = await importAll(projectsDir, url)
+        console.log(r.total ? `  imported ${r.ok}/${r.total} transcript(s)` : '  no transcripts found')
+      } else {
+        console.log(`  ${projectsDir} not found — nothing to import`)
+      }
+    }
+    console.log(`0rrery ready — dashboard at ${url}`)
+    process.exit(failed ? 1 : 0)
+    break
+  }
   default:
     console.log('usage: 0rrery <serve|init|install|hook|import <path|--all>|service <install|uninstall|status>>')
     process.exit(cmd ? 1 : 0)
