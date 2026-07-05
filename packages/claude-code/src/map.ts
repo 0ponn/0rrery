@@ -1,4 +1,5 @@
 import type { IngestOp } from '@0rrery/schema'
+import { isMcpTool } from '@0rrery/schema'
 
 export type HookInput = {
   hook_event_name: string; session_id: string; cwd?: string; transcript_path?: string
@@ -19,7 +20,7 @@ export function mapHookEvent(input: HookInput, now: number = Date.now()): Ingest
     case 'SessionEnd':
       return [{ op: 'session.end', sessionId: sid, ts: now }]
     case 'PreToolUse':
-      return [{ op: 'span.start', id: toolSpanId(input, now), sessionId: sid, parentId: null, kind: 'tool', name: input.tool_name ?? '(tool)', ts: now, attrs: { input: input.tool_input ?? null } }]
+      return [{ op: 'span.start', id: toolSpanId(input, now), sessionId: sid, parentId: null, kind: isMcpTool(input.tool_name ?? '') ? 'mcp' : 'tool', name: input.tool_name ?? '(tool)', ts: now, attrs: { input: input.tool_input ?? null } }]
     case 'PostToolUse': {
       const r = input.tool_response as { is_error?: boolean } | undefined
       return [{ op: 'span.end', id: toolSpanId(input, now), ts: now, status: r?.is_error ? 'error' : 'ok' }]

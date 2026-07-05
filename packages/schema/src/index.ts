@@ -53,3 +53,5 @@ export function parseOps(input: unknown): { ok: IngestOp[]; rejected: Rejected[]
 export type SessionRow = { id: string; source: string; project: string | null; cwd: string | null; git_branch: string | null; started_at: number; last_event_at: number; status: 'active' | 'ended'; meta: string }
 export type SpanRow = { id: string; session_id: string; parent_id: string | null; kind: SpanKind; name: string; started_at: number; ended_at: number | null; status: 'running' | 'ok' | 'error'; attrs: string }
 export type EventRow = { id: string; session_id: string; span_id: string | null; ts: number; type: string; attrs: string }
+
+export { mcpParts, isMcpTool, displayKind } from './names'

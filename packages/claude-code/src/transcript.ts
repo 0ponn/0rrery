@@ -1,4 +1,5 @@
 import type { IngestOp } from '@0rrery/schema'
+import { isMcpTool } from '@0rrery/schema'
 
 export type TranscriptState = {
   sessionStarted: boolean
@@ -95,7 +96,7 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
         if (block.name === 'Agent' || block.name === 'Task') state.agentToolUseIds.add(block.id)
         ops.push({
           op: 'span.start', id: `tool:${block.id}`, sessionId: sid, parentId: `llm:${m.id}`,
-          kind: 'tool', name: block.name ?? '(tool)', ts, attrs: { input: block.input ?? null, ...side },
+          kind: isMcpTool(block.name ?? '') ? 'mcp' : 'tool', name: block.name ?? '(tool)', ts, attrs: { input: block.input ?? null, ...side },
         })
       } else if (block?.type === 'text' && block.text?.trim()) {
         ops.push({

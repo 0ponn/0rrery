@@ -115,3 +115,13 @@ test('linkage handles multiple tool_results per line and object content', () => 
   const links = ops.filter(o => o.op === 'span.start' && (o as any).kind === 'agent').map((o: any) => [o.id, o.parentId])
   expect(links).toEqual([['agent:aaaa111122', 'tool:tu_a1'], ['agent:acccc44455', 'tool:tu_a2']])
 })
+
+test('transcript tool_use classifies mcp tools as kind mcp', () => {
+  const state = newTranscriptState()
+  const l = JSON.stringify({ type: 'assistant', message: { id: 'm_mcp', model: 'x', role: 'assistant', content: [{ type: 'tool_use', id: 'tu_mcp', name: 'mcp__engram__mem_save', input: {} }, { type: 'tool_use', id: 'tu_plain', name: 'Read', input: {} }], usage: {} }, uuid: 'u_mcp', timestamp: '2026-07-05T12:00:00.000Z', cwd: '/p/x', sessionId: 'k1' })
+  const ops = parseTranscriptLine(l, state)
+  const mcp = ops.find(o => o.op === 'span.start' && (o as any).id === 'tool:tu_mcp') as any
+  const plain = ops.find(o => o.op === 'span.start' && (o as any).id === 'tool:tu_plain') as any
+  expect(mcp.kind).toBe('mcp')
+  expect(plain.kind).toBe('tool')
+})

@@ -52,3 +52,10 @@ test('Notification carries notification_type', () => {
   const ops = mapHookEvent({ hook_event_name: 'Notification', session_id: 's1', message: 'hi', notification_type: 'idle_prompt' }, 80)
   expect((ops[0] as any).attrs).toEqual({ message: 'hi', notification_type: 'idle_prompt' })
 })
+
+test('PreToolUse classifies mcp tools as kind mcp', () => {
+  const ops = mapHookEvent({ hook_event_name: 'PreToolUse', session_id: 's1', tool_name: 'mcp__claude_ai_Linear__save_issue', tool_use_id: 'tm1', tool_input: {} }, 5)
+  expect(ops[0]).toMatchObject({ op: 'span.start', id: 'tool:tm1', kind: 'mcp', name: 'mcp__claude_ai_Linear__save_issue' })
+  const plain = mapHookEvent({ hook_event_name: 'PreToolUse', session_id: 's1', tool_name: 'Bash', tool_use_id: 'tb1', tool_input: {} }, 5)
+  expect((plain[0] as any).kind).toBe('tool')
+})
