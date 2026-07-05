@@ -59,6 +59,8 @@ Column by kind (`main`=0, `agent`=1, `llm`=2, `tool`=3); initial y = first-seen 
 - Component: `vite build` + live verification against this dev session's graph (expect ~dozens of nodes, `general-purpose` with a high instance count).
 - Palette: run the dataviz validator on the three kind hexes against the dark surface; record output; snap if failing.
 
+**Palette validation outcome (2026-07-05, accepted deviation):** the validator PASSes CVD adjacent-pair separation and surface contrast but FAILs the categorical lightness band for all three theme hues (`#9ece6a`, `#7aa2f7`, `#e0af68`). Accepted as-is: the band check targets data-mark fills, whereas these hues appear only as 4px accent bars and legend chips whose kind identity is triple-encoded (column position primary, label text, hue), and they match the entity colors used across the rest of the dashboard — snapping to band-passing topology-only hues would break entity-color consistency between tabs.
+
 ## Out of scope
 
 Cross-session/global topology, node click-through filtering, animation/transitions, image export, per-instance agent nodes, edge filtering UI.
