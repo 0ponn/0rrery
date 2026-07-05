@@ -75,17 +75,22 @@ export function runService(
     return ok
   }
   if (sub === 'uninstall') {
-    if (!existsSync(file)) { console.log('no service installed'); return true }
+    // Attempt the stop/disable even if the unit file is gone (hand-deleted with a
+    // live service still running); only skip the file removal itself.
+    const existed = existsSync(file)
     const ok = linux
       ? exec(['systemctl', '--user', 'disable', '--now', '0rrery'])
       : exec(['launchctl', 'unload', '-w', file])
+    if (!existed) { console.log('no service installed'); return true }
     rmSync(file, { force: true })
     if (linux) exec(['systemctl', '--user', 'daemon-reload'])
     console.log(ok ? 'service stopped and removed' : `removed ${file}; stopping reported an error above`)
     return ok
   }
   if (sub === 'status') {
-    return linux ? exec(['systemctl', '--user', 'status', '0rrery', '--no-pager']) : exec(['launchctl', 'list', 'com.0pon.0rrery'])
+    const ok = linux ? exec(['systemctl', '--user', 'status', '0rrery', '--no-pager']) : exec(['launchctl', 'list', 'com.0pon.0rrery'])
+    console.log(`dashboard: http://localhost:${process.env.ORRERY_PORT ?? 7317}`)
+    return ok
   }
   console.error('usage: 0rrery service <install|uninstall|status>')
   return false

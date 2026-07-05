@@ -34,3 +34,22 @@ test('init --no-service installs hooks and imports history', async () => {
     srv.stop()
   }
 }, 30000)
+
+test('init warns on an unknown flag but still completes', async () => {
+  const claudeDir = mkdtempSync(join(tmpdir(), '0rrery-init-'))
+  const scratch = mkdtempSync(join(tmpdir(), '0rrery-init-data-'))
+  const srv = startServer(loadConfig({ port: 7414, dataDir: scratch, dbPath: join(scratch, 't.db'), dashboardDist: null }))
+  try {
+    const proc = Bun.spawn(['bun', 'packages/cli/src/index.ts', 'init', '--no-service', '--no-import', '--bogus'], {
+      cwd: root,
+      env: { ...process.env, ORRERY_CLAUDE_DIR: claudeDir, ORRERY_URL: 'http://127.0.0.1:7414' },
+      stdout: 'ignore',
+      stderr: 'pipe',
+    })
+    const [exitCode, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()])
+    expect(exitCode).toBe(0)
+    expect(stderr).toContain('unknown flag: --bogus')
+  } finally {
+    srv.stop()
+  }
+}, 30000)

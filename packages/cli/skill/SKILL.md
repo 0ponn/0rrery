@@ -28,7 +28,7 @@ All accept `project=<name>`, `from=<epoch ms>`, `to=<epoch ms>` query params unl
 | `GET /api/insights/surface` | external domains contacted + MCP servers used |
 | `GET /api/insights/footprint` | files/dirs agents touched (Read/Write/Edit) |
 | `GET /api/fleet` | live sessions right now: current activity, pending permissions, idle time, stuck flags (no params) |
-| `GET /api/sessions?q=&project=&status=&from=&to=&limit=` | find sessions (q searches first-message previews + project names) |
+| `GET /api/sessions?q=&project=&status=&from=&to=&limit=` | find sessions (q searches user-message previews and project names) |
 | `GET /api/sessions/<id>/summary` | ONE compact object: duration, tokens, est $, models, top tools, errors, denials, subagents, first message |
 | `GET /api/sessions/<id>` | full span/event detail — LARGE (thousands of spans); prefer summary |
 

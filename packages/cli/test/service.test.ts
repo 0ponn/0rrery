@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, existsSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { systemdUnit, launchdPlist, servicePath, runService, resolveBin } from '../src/service'
@@ -53,6 +53,51 @@ test('darwin re-install unloads the existing agent first', () => {
   const calls2: string[][] = []
   runService('install', 'darwin', a => { calls2.push(a); return true }, fresh)
   expect(calls2.some(a => a[1] === 'unload')).toBe(false)
+})
+
+test('uninstall attempts stop/disable even when the unit file was hand-deleted', () => {
+  const claude = mkdtempSync(join(tmpdir(), '0rrery-svc-'))
+  const file = join(claude, 'gone.service')  // never written
+  const calls: string[][] = []
+  const exec = (argv: string[]) => { calls.push(argv); return true }
+  const ok = runService('uninstall', 'linux', exec, file)
+  expect(ok).toBe(true)
+  expect(calls).toEqual([['systemctl', '--user', 'disable', '--now', '0rrery']])
+})
+
+test('uninstall on a live unit still removes the file and reports the result', () => {
+  const claude = mkdtempSync(join(tmpdir(), '0rrery-svc-'))
+  const file = join(claude, '0rrery.service')
+  writeFileSync(file, 'unit')
+  const ok = runService('uninstall', 'linux', () => true, file)
+  expect(ok).toBe(true)
+  expect(existsSync(file)).toBe(false)
+})
+
+test('status prints the dashboard URL after the passthrough call', () => {
+  const logs: unknown[][] = []
+  const origLog = console.log
+  console.log = (...a: unknown[]) => { logs.push(a) }
+  try {
+    runService('status', 'linux', () => true, join(tmpdir(), 'unused.service'))
+  } finally {
+    console.log = origLog
+  }
+  expect(logs.some(l => l.join(' ').includes('dashboard: http://localhost:7317'))).toBe(true)
+})
+
+test('status honors ORRERY_PORT for the printed dashboard URL', () => {
+  const logs: unknown[][] = []
+  const origLog = console.log
+  console.log = (...a: unknown[]) => { logs.push(a) }
+  process.env.ORRERY_PORT = '9999'
+  try {
+    runService('status', 'linux', () => true, join(tmpdir(), 'unused.service'))
+  } finally {
+    console.log = origLog
+    delete process.env.ORRERY_PORT
+  }
+  expect(logs.some(l => l.join(' ').includes('dashboard: http://localhost:9999'))).toBe(true)
 })
 
 test('resolveBin always names the interpreter absolutely (no shebang/PATH reliance)', () => {

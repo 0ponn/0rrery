@@ -79,7 +79,10 @@ switch (cmd) {
     break
   }
   case 'init': {
-    const flags = new Set(process.argv.slice(3))
+    const KNOWN_INIT_FLAGS = new Set(['--no-hooks', '--no-service', '--no-import', '--no-skill'])
+    const argv = process.argv.slice(3)
+    const flags = new Set(argv)
+    for (const f of argv) if (!KNOWN_INIT_FLAGS.has(f)) console.warn(`unknown flag: ${f}`)
     let failed = false
     if (!flags.has('--no-hooks')) {
       console.log('› hooks')
