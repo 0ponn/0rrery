@@ -6,8 +6,20 @@ import type { SpanRow } from '../types'
 const NODE_W = 168
 const NODE_H = 40
 const PAD = 24
+const LOOP_MARGIN = 34
+const BULGE = 48
 
 function edgePath(a: LaidOutNode, b: LaidOutNode): string {
+  if (a.id === b.id) {
+    const x = a.x + PAD + NODE_W / 2, y = a.y + PAD
+    return `M ${x - 24} ${y} C ${x - 24} ${y - 34}, ${x + 24} ${y - 34}, ${x + 24} ${y}`
+  }
+  if (a.x === b.x) {
+    const x1 = a.x + NODE_W + PAD, y1 = a.y + NODE_H / 2 + PAD
+    const x2 = b.x + NODE_W + PAD, y2 = b.y + NODE_H / 2 + PAD
+    const bulge = x1 + BULGE
+    return `M ${x1} ${y1} C ${bulge} ${y1}, ${bulge} ${y2}, ${x2} ${y2}`
+  }
   const x1 = a.x + NODE_W + PAD, y1 = a.y + NODE_H / 2 + PAD
   const x2 = b.x + PAD, y2 = b.y + NODE_H / 2 + PAD
   const mx = (x1 + x2) / 2
@@ -31,7 +43,14 @@ export function TopologyTab({ spans }: { spans: SpanRow[] }) {
 
   if (nodes.length <= 1) return <p className="empty">No topology yet — spans appear here as the session runs.</p>
 
-  const width = Math.max(...laid.map(n => n.x)) + NODE_W + PAD * 2
+  const baseWidth = Math.max(...laid.map(n => n.x)) + NODE_W + PAD * 2
+  // same-column edges bulge BULGE px right of the node's right edge — only wider than
+  // baseWidth if that column happens to be the rightmost one (i.e. no llm/tool columns).
+  const bulgeWidth = Math.max(0, ...edges.map(e => {
+    const a = byId.get(e.from), b = byId.get(e.to)
+    return a && b && a.id !== b.id && a.x === b.x ? a.x + NODE_W + PAD + BULGE + PAD : 0
+  }))
+  const width = Math.max(baseWidth, bulgeWidth)
   const height = Math.max(...laid.map(n => n.y)) + NODE_H + PAD * 2
   const hovered = hover ? edges.find(e => `${e.from}→${e.to}` === hover) : null
 
@@ -44,7 +63,8 @@ export function TopologyTab({ spans }: { spans: SpanRow[] }) {
         {hovered && <span className="topo-tip">{byId.get(hovered.from)?.label} → {byId.get(hovered.to)?.label}: {edgeTip(hovered)}</span>}
       </div>
       <div className="topo-scroll">
-        <svg width={width} height={height} role="img" aria-label="Session topology graph">
+        <svg width={width} height={height + LOOP_MARGIN} viewBox={`0 -${LOOP_MARGIN} ${width} ${height + LOOP_MARGIN}`}
+          role="img" aria-label="Session topology graph">
           {edges.map(e => {
             const a = byId.get(e.from), b = byId.get(e.to)
             if (!a || !b) return null

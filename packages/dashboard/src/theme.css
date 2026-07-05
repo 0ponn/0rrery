@@ -64,5 +64,5 @@ h1 a { color: var(--dim); text-decoration: none; }
 .topo-accent.accent-tool { fill: var(--run); } .topo-accent.accent-main { fill: var(--dim); }
 .topo-label { fill: var(--fg); font-size: 12px; }
 .topo-count { fill: var(--dim); }
-.topo-edge { stroke: var(--dim); opacity: 0.45; cursor: pointer; }
+.topo-edge { stroke: var(--dim); opacity: 0.45; }
 .topo-edge.hot { stroke: var(--fg); opacity: 0.9; }
