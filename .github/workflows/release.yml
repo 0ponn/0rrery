@@ -15,9 +15,10 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - uses: actions/setup-node@v4   # npm >= 11.5 for OIDC publish
+      - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
+      - run: npm install -g npm@latest && npm --version   # OIDC publish needs npm >= 11.5; node's bundled npm may lag
       - run: bun install --frozen-lockfile
       - run: bun test
       - run: bunx tsc --noEmit
