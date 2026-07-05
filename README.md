@@ -17,7 +17,7 @@ Requires [Bun](https://bun.sh) ≥ 1.1. Claude Code hooks require the global ins
 
 | Command | What it does |
 |---|---|
-| `0rrery init` | hooks + service + history import, idempotently |
+| `0rrery init` | hooks + agent skill + service + history import, idempotently |
 | `0rrery serve` | run the server + dashboard in the foreground |
 | `0rrery install` | (re)install Claude Code hooks into `~/.claude/settings.json`; replaces stale 0rrery entries |
 | `0rrery import <file.jsonl>` | import one transcript |
@@ -40,6 +40,10 @@ Requires [Bun](https://bun.sh) ≥ 1.1. Claude Code hooks require the global ins
 | `ORRERY_DB` | `<data dir>/0rrery.db` | database path |
 | `ORRERY_URL` | `http://localhost:7317` | where hooks/import post to |
 | `ORRERY_CLAUDE_DIR` | `~/.claude` | Claude Code config/transcripts root |
+
+## Agent skill
+
+`init` installs a skill at `~/.claude/skills/0rrery/` that teaches Claude to answer questions like "what did I spend this week", "what keeps failing in this repo", or "what did my last session do" by querying the local API. Skip with `--no-skill`; remove with `rm -rf ~/.claude/skills/0rrery`.
 
 ## Upgrade
 

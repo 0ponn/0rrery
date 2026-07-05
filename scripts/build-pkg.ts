@@ -24,6 +24,7 @@ chmodSync(entry, 0o755)
 
 cpSync(join(root, 'packages/dashboard/dist'), join(out, 'public'), { recursive: true })
 cpSync(join(root, 'README.md'), join(out, 'README.md'))
+cpSync(join(root, 'packages/cli/skill'), join(out, 'skill'), { recursive: true })
 
 writeFileSync(join(out, 'package.json'), JSON.stringify({
   name: '0rrery',
@@ -33,7 +34,7 @@ writeFileSync(join(out, 'package.json'), JSON.stringify({
   repository: { type: 'git', url: 'https://github.com/0ponn/0rrery' },
   bin: { '0rrery': './index.js' },
   engines: { bun: '>=1.1' },
-  files: ['index.js', 'public', 'README.md'],
+  files: ['index.js', 'public', 'skill', 'README.md'],
 }, null, 2) + '\n')
 
 console.log(`staged ${out}`)

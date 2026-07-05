@@ -24,6 +24,9 @@ test('npm pack artifact installs globally and serves the dashboard', async () =>
   expect(r.exitCode).toBe(0)
   const bin = join(prefix, 'bin', '0rrery')
   expect(existsSync(bin)).toBe(true)
+  const { realpathSync } = await import('node:fs')
+  const pkgDir = join(realpathSync(bin), '..')
+  expect(existsSync(join(pkgDir, 'skill', 'SKILL.md'))).toBe(true)
 
   const scratch = mkdtempSync(join(tmpdir(), '0rrery-data-'))
   const proc = Bun.spawn([bin, 'serve'], {

@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test'
-import { mkdtempSync, mkdirSync, copyFileSync, readFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, copyFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { startServer, loadConfig } from '@0rrery/server'
@@ -27,6 +27,7 @@ test('init --no-service installs hooks and imports history', async () => {
     expect(exitCode).toBe(0)
     const settings = JSON.parse(readFileSync(join(claudeDir, 'settings.json'), 'utf8'))
     expect(settings.hooks.PreToolUse.some((e: any) => e.hooks.some((h: any) => h.command.endsWith(' hook') && h.command.includes('0rrery')))).toBe(true)
+    expect(existsSync(join(claudeDir, 'skills', '0rrery', 'SKILL.md'))).toBe(true)
     const sessions = await fetch('http://127.0.0.1:7413/api/sessions').then(x => x.json()) as any[]
     expect(sessions.some(s => s.id === 'fix1')).toBe(true)
   } finally {

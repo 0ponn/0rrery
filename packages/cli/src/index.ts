@@ -7,6 +7,7 @@ import { startTailer, importSession, mapHookEvent, emitOps, type HookInput } fro
 import { installHooks } from './install'
 import { importAll } from './sweep'
 import { runService, resolveBin } from './service'
+import { installSkill, skillSourceDir } from './skill'
 
 const [cmd, arg] = process.argv.slice(2)
 const url = process.env.ORRERY_URL ?? 'http://localhost:7317'
@@ -83,6 +84,13 @@ switch (cmd) {
     if (!flags.has('--no-hooks')) {
       console.log('› hooks')
       try { runInstall() } catch (err) { console.error(err instanceof Error ? err.message : String(err)); failed = true }
+    }
+    if (!flags.has('--no-skill')) {
+      console.log('› skill')
+      const src = skillSourceDir()
+      if (!existsSync(claudeDir())) console.log(`  ${claudeDir()} not found — skipping skill`)
+      else if (!src) console.log('  skill assets not found — skipping')
+      else console.log(`  installed ${installSkill(claudeDir(), src)}`)
     }
     if (!flags.has('--no-service')) {
       console.log('› service')
