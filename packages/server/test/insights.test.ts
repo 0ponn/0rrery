@@ -152,6 +152,22 @@ test('externalSurface strips userinfo and ports, never leaks credentials', () =>
   expect(JSON.stringify(s)).not.toContain('pass')
 })
 
+test('externalSurface caps mcp servers to top 100 by total calls', () => {
+  const store = new Store(':memory:')
+  store.applyOps([
+    { op: 'session.start', sessionId: 'sm', source: 'claude-code', project: 'gamma', ts: D1 },
+    { op: 'span.start', id: 'mcp:x1', sessionId: 'sm', parentId: null, kind: 'mcp', name: 'mcp__one__tool', ts: D1, attrs: { input: {} } },
+    { op: 'span.start', id: 'mcp:y1', sessionId: 'sm', parentId: null, kind: 'mcp', name: 'mcp__two__tool', ts: D1, attrs: { input: {} } },
+    { op: 'span.start', id: 'mcp:y2', sessionId: 'sm', parentId: null, kind: 'mcp', name: 'mcp__two__tool', ts: D1, attrs: { input: {} } },
+    { op: 'span.start', id: 'mcp:z1', sessionId: 'sm', parentId: null, kind: 'mcp', name: 'mcp__three__tool', ts: D1, attrs: { input: {} } },
+    { op: 'span.start', id: 'mcp:z2', sessionId: 'sm', parentId: null, kind: 'mcp', name: 'mcp__three__tool', ts: D1, attrs: { input: {} } },
+    { op: 'span.start', id: 'mcp:z3', sessionId: 'sm', parentId: null, kind: 'mcp', name: 'mcp__three__tool', ts: D1, attrs: { input: {} } },
+  ])
+  const s = externalSurface(store.db, {})
+  expect(s.mcp[0].server).toBe('three')
+  expect(s.mcp.length).toBeLessThanOrEqual(100)
+})
+
 test('sprawlMap survives self-referential parent ids', () => {
   const store = new Store(':memory:')
   store.applyOps([

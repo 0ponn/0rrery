@@ -8,6 +8,8 @@ export function SessionsView() {
   const [status, setStatus] = useState('')
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [project, setProject] = useState('')
+  const [debouncedProject, setDebouncedProject] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -16,15 +18,21 @@ export function SessionsView() {
   }, [query])
 
   useEffect(() => {
+    const t = setTimeout(() => setDebouncedProject(project), 300)
+    return () => clearTimeout(t)
+  }, [project])
+
+  useEffect(() => {
     let cancelled = false
-    const params: { status?: string; q?: string } = {}
+    const params: { status?: string; q?: string; project?: string } = {}
     if (status) params.status = status
     if (debouncedQuery) params.q = debouncedQuery
+    if (debouncedProject) params.project = debouncedProject
     fetchSessions(params)
       .then(s => { if (!cancelled) { setSessions(s); setError('') } })
       .catch(e => { if (!cancelled) setError(String(e)) })
     return () => { cancelled = true }
-  }, [status, debouncedQuery])
+  }, [status, debouncedQuery, debouncedProject])
 
   if (error) return <p className="error">{error}</p>
   return (
@@ -33,6 +41,7 @@ export function SessionsView() {
         <h1>Sessions</h1>
         <div className="filters">
           <input type="search" placeholder="search sessions…" value={query} onChange={e => setQuery(e.target.value)} />
+          <input type="text" placeholder="project" value={project} onChange={e => setProject(e.target.value)} />
           <select value={status} onChange={e => setStatus(e.target.value)}>
             <option value="">all</option>
             <option value="active">active</option>

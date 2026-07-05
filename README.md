@@ -48,6 +48,8 @@ bun install -g 0rrery@latest
 0rrery service uninstall && 0rrery service install   # regenerate if the bin path changed
 ```
 
+After upgrading (or when developing from the repo), rebuild and force a reinstall so the dashboard picks up the new bundle: `bun run build:pkg`, then `bun install -g 0rrery@latest` for registry installs, or `cd ~ && bun install --force` for `file:`-pinned dev installs — an unchanged `file:` dep may skip re-copying otherwise.
+
 ## Uninstall
 
 ```

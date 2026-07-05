@@ -4,6 +4,10 @@ import { estCost } from './prices'
 
 export type InsightFilter = { project?: string; from?: number; to?: number }
 
+function parseAttrs(attrs: string | null): Record<string, unknown> {
+  try { return JSON.parse(attrs || '{}') } catch { return {} }
+}
+
 export type SpendRow = { day: string; model: string; project: string | null; tokens_in: number; tokens_out: number; calls: number; est_cost: number | null }
 export type ToolHealthRow = { name: string; kind: 'tool' | 'mcp'; calls: number; errors: number; denials: number }
 export type ProjectRollup = { project: string | null; sessions: number; wall_ms: number; tokens_in: number; tokens_out: number; est_cost: number | null; subagents: number }
@@ -132,9 +136,9 @@ export function sprawlMap(db: Database, f: InsightFilter): { nodes: TopoNode[]; 
     ed.calls++
     if (r.e) ed.totalMs += r.e - r.s
     if (r.kind === 'llm') {
-      const a = JSON.parse(r.attrs || '{}')
-      ed.tokensIn += a.input_tokens ?? 0
-      ed.tokensOut += a.output_tokens ?? 0
+      const a = parseAttrs(r.attrs)
+      ed.tokensIn += (a.input_tokens as number) ?? 0
+      ed.tokensOut += (a.output_tokens as number) ?? 0
     }
     edges.set(key, ed)
   }
@@ -176,8 +180,10 @@ export function externalSurface(db: Database, f: InsightFilter) {
   return {
     domains: [...domains.values()].sort((a, b) => b.calls - a.calls).slice(0, 100)
       .map(d => ({ host: d.host, calls: d.calls, tools: [...d.tools].sort() })),
-    mcp: [...mcp.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([server, tools]) => ({ server, tools: [...tools.entries()].map(([name, calls]) => ({ name, calls })).sort((a, b) => b.calls - a.calls) })),
+    mcp: [...mcp.entries()]
+      .map(([server, tools]) => ({ server, tools: [...tools.entries()].map(([name, calls]) => ({ name, calls })).sort((a, b) => b.calls - a.calls) }))
+      .sort((a, b) => b.tools.reduce((s, t) => s + t.calls, 0) - a.tools.reduce((s, t) => s + t.calls, 0))
+      .slice(0, 100),
   }
 }
 
