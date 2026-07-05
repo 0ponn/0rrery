@@ -80,3 +80,12 @@ h1 a { color: var(--dim); text-decoration: none; }
 .legend-chip { display: inline-flex; align-items: center; gap: 5px; }
 .spend-costs { margin-top: 10px; color: var(--dim); display: flex; flex-direction: column; gap: 2px; }
 .footnote { margin-top: 8px; color: var(--dim); font-size: 11px; }
+.fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin: 12px 0 20px; }
+.fleet-card { display: block; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); text-decoration: none; }
+.fleet-card:hover { border-color: var(--accent); }
+.fleet-card.stuck { border-color: var(--err); }
+.fleet-card header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.fleet-now { color: var(--dim); font-size: 0.9em; margin-bottom: 4px; }
+.perm-banner { color: var(--run); font-size: 0.85em; margin: 2px 0; }
+.fleet-card.stuck .perm-banner { color: var(--err); }
+.fleet-foot { color: var(--dim); font-size: 0.8em; margin-top: 6px; }

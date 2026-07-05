@@ -1,4 +1,4 @@
-import type { SessionDetail, ApiSession } from './types'
+import type { SessionDetail, ApiSession, FleetCard } from './types'
 
 const base = ''  // same origin; vite dev proxies /api
 
@@ -20,6 +20,8 @@ export async function fetchSession(id: string): Promise<SessionDetail> {
   if (!res.ok) throw new Error(`session ${id}: ${res.status}`)
   return res.json()
 }
+
+export const fetchFleet = (): Promise<FleetCard[]> => fetch('/api/fleet').then(r => r.json())
 
 export function liveSocket(session: string, onOps: (ops: unknown[]) => void): WebSocket {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws'
