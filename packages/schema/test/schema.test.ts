@@ -38,3 +38,12 @@ test('span.start accepts kind mcp through the wire schema', () => {
   expect(rejected).toEqual([])
   expect((ok[0] as any).kind).toBe('mcp')
 })
+
+test('kind hook is rejected — removed 2026-07-05, no emission source exists (see remove-hook-kind spec)', () => {
+  const { ok, rejected } = parseOps([
+    { op: 'span.start', id: 'h1', sessionId: 's1', parentId: null, kind: 'hook', name: 'x', ts: 1, attrs: {} },
+  ])
+  expect(ok).toHaveLength(0)
+  expect(rejected).toHaveLength(1)
+  expect(rejected[0].error).toContain('kind')
+})

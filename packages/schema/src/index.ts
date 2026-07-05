@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export type SpanKind = 'agent' | 'tool' | 'llm' | 'mcp' | 'hook' | 'custom'
+export type SpanKind = 'agent' | 'tool' | 'llm' | 'mcp' | 'custom'
 
 const attrs = z.record(z.unknown()).optional()
 const ts = z.number().int().nonnegative()
@@ -14,7 +14,7 @@ const SessionEndSchema = z.object({ op: z.literal('session.end'), sessionId: z.s
 const SpanStartSchema = z.object({
   op: z.literal('span.start'), id: z.string().min(1), sessionId: z.string().min(1),
   parentId: z.string().nullable().optional(),
-  kind: z.enum(['agent', 'tool', 'llm', 'mcp', 'hook', 'custom']),
+  kind: z.enum(['agent', 'tool', 'llm', 'mcp', 'custom']),
   name: z.string().min(1), ts, attrs,
 }).strict()
 const SpanEndSchema = z.object({
