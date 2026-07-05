@@ -3,7 +3,7 @@ import { writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Store } from '../src/store'
-import { spendSeries, toolHealth, projectRollups, searchSessions } from '../src/insights'
+import { spendSeries, toolHealth, projectRollups, searchSessions, sprawlMap, externalSurface, fsFootprint } from '../src/insights'
 import { estCost, resetPricesCache } from '../src/prices'
 
 // Day 1 = 2026-07-01 (ts 1782864000000), Day 2 = 2026-07-02 (+86400000)
@@ -87,4 +87,53 @@ test('searchSessions matches preview text and filters by project', () => {
   expect(searchSessions(db, { q: 'nonexistent' }, OPTS)).toHaveLength(0)
   expect(searchSessions(db, { project: 'beta' }, OPTS).map(s => s.id)).toEqual(['sB'])
   expect(searchSessions(db, { q: 'bet' }, OPTS).map(s => s.id)).toEqual(['sB'])  // project name matches too
+})
+
+function sprawlSeeded() {
+  const store = new Store(':memory:')
+  store.applyOps([
+    { op: 'session.start', sessionId: 's1', source: 'claude-code', project: 'alpha', ts: D1 },
+    { op: 'span.start', id: 'llm:a', sessionId: 's1', parentId: null, kind: 'llm', name: 'claude-sonnet-5', ts: D1, attrs: { input_tokens: 100, output_tokens: 200 } },
+    { op: 'span.end', id: 'llm:a', ts: D1 + 1000, status: 'ok' },
+    { op: 'span.start', id: 'tool:r1', sessionId: 's1', parentId: 'llm:a', kind: 'tool', name: 'Read', ts: D1, attrs: { input: { file_path: '/repo/src/app.ts' } } },
+    { op: 'span.start', id: 'tool:w1', sessionId: 's1', parentId: 'llm:a', kind: 'tool', name: 'Write', ts: D1, attrs: { input: { file_path: '/repo/src/app.ts' } } },
+    { op: 'span.start', id: 'tool:f1', sessionId: 's1', parentId: 'llm:a', kind: 'tool', name: 'WebFetch', ts: D1, attrs: { input: { url: 'https://api.github.com/repos/x' } } },
+    { op: 'span.start', id: 'tool:b1', sessionId: 's1', parentId: 'llm:a', kind: 'tool', name: 'Bash', ts: D1, attrs: { input: { command: 'curl -s https://registry.npmjs.org/0rrery | jq .' } } },
+    { op: 'span.start', id: 'mcp:m1', sessionId: 's1', parentId: 'llm:a', kind: 'mcp', name: 'mcp__engram__mem_save', ts: D1, attrs: { input: {} } },
+    // second session, same shapes — cross-session merge
+    { op: 'session.start', sessionId: 's2', source: 'claude-code', project: 'beta', ts: D2 },
+    { op: 'span.start', id: 'llm:b', sessionId: 's2', parentId: null, kind: 'llm', name: 'claude-sonnet-5', ts: D2, attrs: { input_tokens: 10, output_tokens: 20 } },
+    { op: 'span.end', id: 'llm:b', ts: D2 + 500, status: 'ok' },
+    { op: 'span.start', id: 'tool:r2', sessionId: 's2', parentId: 'llm:b', kind: 'tool', name: 'Read', ts: D2, attrs: { input: { file_path: '/repo/src/db.ts' } } },
+  ])
+  return store
+}
+
+test('sprawlMap merges actors across sessions by label', () => {
+  const { nodes, edges } = sprawlMap(sprawlSeeded().db, {})
+  expect(nodes.find(n => n.id === 'llm:claude-sonnet-5')!.count).toBe(2)
+  expect(nodes.find(n => n.id === 'tool:Read')!.count).toBe(2)
+  const readEdge = edges.find(e => e.from === 'llm:claude-sonnet-5' && e.to === 'tool:Read')!
+  expect(readEdge.calls).toBe(2)
+  const mainEdge = edges.find(e => e.from === 'main' && e.to === 'llm:claude-sonnet-5')!
+  expect(mainEdge).toMatchObject({ calls: 2, tokensIn: 110, tokensOut: 220 })
+})
+
+test('sprawlMap project filter narrows the graph', () => {
+  const { nodes } = sprawlMap(sprawlSeeded().db, { project: 'beta' })
+  expect(nodes.find(n => n.id === 'tool:Read')!.count).toBe(1)
+  expect(nodes.find(n => n.id === 'tool:WebFetch')).toBeUndefined()
+})
+
+test('externalSurface extracts url hosts, curl hosts, and mcp servers', () => {
+  const s = externalSurface(sprawlSeeded().db, {})
+  expect(s.domains.find(d => d.host === 'api.github.com')).toMatchObject({ calls: 1, tools: ['WebFetch'] })
+  expect(s.domains.find(d => d.host === 'registry.npmjs.org')).toMatchObject({ calls: 1, tools: ['Bash'] })
+  expect(s.mcp).toEqual([{ server: 'engram', tools: [{ name: 'mem_save', calls: 1 }] }])
+})
+
+test('fsFootprint aggregates files and parent dirs with read/write split', () => {
+  const f = fsFootprint(sprawlSeeded().db, {})
+  expect(f.files.find(x => x.path === '/repo/src/app.ts')).toMatchObject({ touches: 2, reads: 1, writes: 1 })
+  expect(f.dirs.find(x => x.path === '/repo/src')).toMatchObject({ touches: 3, reads: 2, writes: 1 })
 })

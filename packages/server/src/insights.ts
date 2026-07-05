@@ -1,5 +1,5 @@
 import type { Database } from 'bun:sqlite'
-import type { SessionRow } from '@0rrery/schema'
+import type { SessionRow, TopoNode, TopoEdge, TopoKind } from '@0rrery/schema'
 import { estCost } from './prices'
 
 export type InsightFilter = { project?: string; from?: number; to?: number }
@@ -100,4 +100,101 @@ export function searchSessions(
   params.push(f.limit ?? 50)
   return db.query(`SELECT * FROM sessions WHERE ${conds.join(' AND ')}
     ORDER BY last_event_at DESC LIMIT ?`).all(...params) as SessionRow[]
+}
+
+export function sprawlMap(db: Database, f: InsightFilter): { nodes: TopoNode[]; edges: TopoEdge[] } {
+  const { where, params } = spanWhere(f, "sp.kind IN ('agent', 'llm', 'tool', 'mcp')")
+  const rows = db.query(`
+    SELECT sp.id id, sp.parent_id parent_id, sp.kind kind, sp.name name,
+      sp.started_at s, sp.ended_at e, sp.attrs attrs
+    FROM spans sp JOIN sessions se ON se.id = sp.session_id WHERE ${where}`).all(...params) as any[]
+  const byId = new Map(rows.map(r => [r.id, r]))
+  const nodeId = (r: any) => `${r.kind}:${r.name}`
+  const parentNode = (r: any): string => {
+    const p = r.parent_id ? byId.get(r.parent_id) : null
+    if (!p) return r.kind === 'agent' || r.kind === 'llm' ? 'main' : 'main'
+    if (p.kind === 'agent' || p.kind === 'llm') return nodeId(p)
+    // tool parent (Agent tool spawning an agent span): attribute to the tool's own parent chain
+    return parentNode(p)
+  }
+  const nodes = new Map<string, TopoNode>([['main', { id: 'main', kind: 'main', label: 'main', count: 0 }]])
+  const edges = new Map<string, TopoEdge>()
+  for (const r of rows) {
+    const id = nodeId(r)
+    const n = nodes.get(id) ?? { id, kind: r.kind as TopoKind, label: r.name, count: 0 }
+    n.count++
+    nodes.set(id, n)
+    const from = parentNode(r)
+    const key = `${from}→${id}`
+    const ed = edges.get(key) ?? { from, to: id, calls: 0, totalMs: 0, tokensIn: 0, tokensOut: 0 }
+    ed.calls++
+    if (r.e) ed.totalMs += r.e - r.s
+    if (r.kind === 'llm') {
+      const a = JSON.parse(r.attrs || '{}')
+      ed.tokensIn += a.input_tokens ?? 0
+      ed.tokensOut += a.output_tokens ?? 0
+    }
+    edges.set(key, ed)
+  }
+  return { nodes: [...nodes.values()], edges: [...edges.values()] }
+}
+
+const URL_RE = /https?:\/\/([^\/\s'"<>)]+)/g
+
+export function externalSurface(db: Database, f: InsightFilter) {
+  const { where, params } = spanWhere(f, "sp.kind IN ('tool', 'mcp')")
+  const rows = db.query(`
+    SELECT sp.name name, sp.kind kind,
+      json_extract(sp.attrs, '$.input.url') url, json_extract(sp.attrs, '$.input.command') cmd
+    FROM spans sp JOIN sessions se ON se.id = sp.session_id
+    WHERE ${where} AND (sp.kind = 'mcp' OR json_extract(sp.attrs, '$.input.url') IS NOT NULL
+      OR json_extract(sp.attrs, '$.input.command') IS NOT NULL)`).all(...params) as any[]
+  const domains = new Map<string, { host: string; calls: number; tools: Set<string> }>()
+  const addHost = (raw: string, tool: string) => {
+    const host = raw.split(':')[0].toLowerCase()
+    if (!host.includes('.') || host === 'localhost' || host.startsWith('127.')) return
+    const d = domains.get(host) ?? { host, calls: 0, tools: new Set<string>() }
+    d.calls++; d.tools.add(tool); domains.set(host, d)
+  }
+  const mcp = new Map<string, Map<string, number>>()
+  for (const r of rows) {
+    if (r.kind === 'mcp') {
+      const m = r.name.match(/^mcp__(.+?)__(.+)$/)
+      if (m) {
+        const tools = mcp.get(m[1]) ?? new Map()
+        tools.set(m[2], (tools.get(m[2]) ?? 0) + 1)
+        mcp.set(m[1], tools)
+      }
+      continue
+    }
+    if (r.url) { try { addHost(new URL(r.url).host, r.name) } catch {} }
+    if (r.cmd) for (const m of String(r.cmd).matchAll(URL_RE)) addHost(m[1], r.name)
+  }
+  return {
+    domains: [...domains.values()].sort((a, b) => b.calls - a.calls).slice(0, 100)
+      .map(d => ({ host: d.host, calls: d.calls, tools: [...d.tools].sort() })),
+    mcp: [...mcp.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([server, tools]) => ({ server, tools: [...tools.entries()].map(([name, calls]) => ({ name, calls })).sort((a, b) => b.calls - a.calls) })),
+  }
+}
+
+export function fsFootprint(db: Database, f: InsightFilter) {
+  const { where, params } = spanWhere(f, "sp.kind = 'tool' AND sp.name IN ('Read', 'Write', 'Edit', 'NotebookEdit')")
+  const rows = db.query(`
+    SELECT sp.name name, json_extract(sp.attrs, '$.input.file_path') fp
+    FROM spans sp JOIN sessions se ON se.id = sp.session_id
+    WHERE ${where} AND json_extract(sp.attrs, '$.input.file_path') IS NOT NULL`).all(...params) as any[]
+  type Agg = { path: string; touches: number; reads: number; writes: number }
+  const files = new Map<string, Agg>(), dirs = new Map<string, Agg>()
+  const bump = (m: Map<string, Agg>, path: string, isRead: boolean) => {
+    const a = m.get(path) ?? { path, touches: 0, reads: 0, writes: 0 }
+    a.touches++; isRead ? a.reads++ : a.writes++; m.set(path, a)
+  }
+  for (const r of rows) {
+    const isRead = r.name === 'Read'
+    bump(files, r.fp, isRead)
+    bump(dirs, r.fp.split('/').slice(0, -1).join('/') || '/', isRead)
+  }
+  const top = (m: Map<string, Agg>) => [...m.values()].sort((a, b) => b.touches - a.touches).slice(0, 100)
+  return { dirs: top(dirs), files: top(files) }
 }

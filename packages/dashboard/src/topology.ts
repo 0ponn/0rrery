@@ -1,9 +1,7 @@
 import type { SpanRow } from './types'
 import { mcpParts } from '@0rrery/schema/src/names'
-
-export type TopoKind = 'main' | 'agent' | 'llm' | 'tool' | 'mcp'
-export type TopoNode = { id: string; kind: TopoKind; label: string; count: number }
-export type TopoEdge = { from: string; to: string; calls: number; totalMs: number; tokensIn: number; tokensOut: number }
+import type { TopoKind, TopoNode, TopoEdge } from '@0rrery/schema'
+export type { TopoKind, TopoNode, TopoEdge }
 export type LaidOutNode = TopoNode & { x: number; y: number }
 
 export const COL_X = 220

@@ -55,3 +55,4 @@ export type SpanRow = { id: string; session_id: string; parent_id: string | null
 export type EventRow = { id: string; session_id: string; span_id: string | null; ts: number; type: string; attrs: string }
 
 export { mcpParts, isMcpTool, displayKind } from './names'
+export * from './topology'
