@@ -32,7 +32,11 @@ export function spendSeries(db: Database, f: InsightFilter): SpendRow[] {
     FROM spans sp JOIN sessions se ON se.id = sp.session_id
     WHERE ${where}
     GROUP BY day, model, project ORDER BY day, model`).all(...params) as any[]
-  return rows.map(r => ({ ...r, est_cost: estCost(r.model, r.tokens_in, r.tokens_out) })) as SpendRow[]
+  return rows.map(r => ({
+    day: r.day, model: r.model, project: r.project,
+    tokens_in: r.tokens_in, tokens_out: r.tokens_out, calls: r.calls,
+    est_cost: estCost(r.model, r.tokens_in, r.tokens_out),
+  }))
 }
 
 export function toolHealth(db: Database, f: InsightFilter): ToolHealthRow[] {
@@ -88,10 +92,12 @@ export function searchSessions(
   const conds = ['1 = 1']
   const params: (string | number)[] = []
   if (f.q) {
-    conds.push(`(project LIKE '%' || ? || '%' OR EXISTS(
+    // Escape LIKE metacharacters so a literal %/_ in the query can't turn into a wildcard.
+    const q = f.q.replaceAll(/[%_\\]/g, m => '\\' + m)
+    conds.push(`(project LIKE '%' || ? || '%' ESCAPE '\\' OR EXISTS(
       SELECT 1 FROM events ev WHERE ev.session_id = sessions.id
-        AND ev.type = 'message.user' AND json_extract(ev.attrs, '$.preview') LIKE '%' || ? || '%'))`)
-    params.push(f.q, f.q)
+        AND ev.type = 'message.user' AND json_extract(ev.attrs, '$.preview') LIKE '%' || ? || '%' ESCAPE '\\'))`)
+    params.push(q, q)
   }
   if (f.project) { conds.push('project = ?'); params.push(f.project) }
   if (f.from !== undefined) { conds.push('last_event_at >= ?'); params.push(f.from) }
@@ -220,11 +226,12 @@ export type SessionSummary = {
 export function sessionSummary(db: Database, id: string): SessionSummary | null {
   const s = db.query('SELECT * FROM sessions WHERE id = ?').get(id) as any
   if (!s) return null
+  // Sessions rarely use more than a handful of distinct models; cap so the summary payload stays bounded.
   const models = db.query(`SELECT name model, COUNT(*) calls,
       SUM(COALESCE(json_extract(attrs, '$.input_tokens'), 0)) tin,
       SUM(COALESCE(json_extract(attrs, '$.output_tokens'), 0)) tout
     FROM spans WHERE session_id = ? AND kind = 'llm'
-    GROUP BY name ORDER BY calls DESC, model`).all(id) as any[]
+    GROUP BY name ORDER BY calls DESC, model LIMIT 20`).all(id) as any[]
   const top_tools = db.query(`SELECT name, kind, COUNT(*) calls, SUM(status = 'error') errors
     FROM spans WHERE session_id = ? AND kind IN ('tool', 'mcp')
     GROUP BY name, kind ORDER BY calls DESC LIMIT 10`).all(id) as any[]

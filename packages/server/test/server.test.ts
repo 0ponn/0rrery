@@ -61,6 +61,22 @@ test('malformed limit/offset degrade gracefully', async () => {
   srv.stop()
 })
 
+test('empty from/to params are treated as absent, not epoch-0', async () => {
+  const srv = boot()
+  await fetch(`${srv.url}/api/ingest`, { method: 'POST', body: JSON.stringify([
+    { op: 'session.start', sessionId: 's1', source: 'api', ts: 1000 },
+    { op: 'session.start', sessionId: 's2', source: 'api', ts: 2000 },
+  ]) })
+  // from='' must not be treated as a defined filter (from=0) — that would route to
+  // searchSessions, which ignores offset, and silently break `?from=&offset=`.
+  const res = await fetch(`${srv.url}/api/sessions?from=&offset=1&limit=1`)
+  expect(res.status).toBe(200)
+  const rows = await res.json()
+  expect(rows).toHaveLength(1)
+  expect(rows[0].id).toBe('s1')
+  srv.stop()
+})
+
 test('websocket live delivers ingested ops', async () => {
   const srv = boot()
   const wsUrl = srv.url.replace('http', 'ws') + '/api/live?session=*'

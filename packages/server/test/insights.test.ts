@@ -89,6 +89,12 @@ test('searchSessions matches preview text and filters by project', () => {
   expect(searchSessions(db, { q: 'bet' }, OPTS).map(s => s.id)).toEqual(['sB'])  // project name matches too
 })
 
+test('searchSessions escapes LIKE metacharacters: a literal % matches nothing, not everything', () => {
+  const db = seeded().db
+  expect(searchSessions(db, { q: '%' }, OPTS)).toHaveLength(0)
+  expect(searchSessions(db, { q: '_' }, OPTS)).toHaveLength(0)
+})
+
 function sprawlSeeded() {
   const store = new Store(':memory:')
   store.applyOps([
@@ -196,6 +202,18 @@ test('sessionSummary aggregates one session compactly', () => {
 
 test('sessionSummary returns null for unknown id', () => {
   expect(sessionSummary(seeded().db, 'nope')).toBeNull()
+})
+
+test('sessionSummary caps models to 20', () => {
+  const store = new Store(':memory:')
+  const ops: any[] = [{ op: 'session.start', sessionId: 'sManyModels', source: 'claude-code', project: 'many', ts: D1 }]
+  for (let i = 0; i < 25; i++) {
+    ops.push({ op: 'span.start', id: `llm:m${i}`, sessionId: 'sManyModels', parentId: null, kind: 'llm', name: `model-${i}`, ts: D1, attrs: { input_tokens: 1, output_tokens: 1 } })
+    ops.push({ op: 'span.end', id: `llm:m${i}`, ts: D1 + 10, status: 'ok' })
+  }
+  store.applyOps(ops)
+  const s = sessionSummary(store.db, 'sManyModels')!
+  expect(s.models.length).toBe(20)
 })
 
 const NOW = D1 + 1_000_000

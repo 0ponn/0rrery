@@ -10,6 +10,7 @@ const DEFAULTS: Record<string, { in: number; out: number }> = {
   'claude-3-5-haiku': { in: 0.8, out: 4 },
 }
 
+// Loaded once per process; set ORRERY_PRICES before first estCost call (tests: resetPricesCache).
 let cached: Record<string, { in: number; out: number }> | null = null
 
 export function resetPricesCache() { cached = null }

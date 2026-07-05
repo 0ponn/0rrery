@@ -11,7 +11,7 @@ const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } })
 
 const numParam = (raw: string | null): number | undefined => {
-  if (raw === null) return undefined
+  if (raw === null || raw === '') return undefined
   const n = Number(raw)
   return Number.isInteger(n) && n >= 0 ? n : undefined
 }
@@ -64,8 +64,8 @@ export function startServer(config: Config) {
           const bad = (name: string) => json({ error: `invalid ${name}` }, 400)
           const rawFrom = url.searchParams.get('from'), rawTo = url.searchParams.get('to')
           const from = numParam(rawFrom), to = numParam(rawTo)
-          if (rawFrom !== null && from === undefined) return bad('from')
-          if (rawTo !== null && to === undefined) return bad('to')
+          if (rawFrom !== null && rawFrom !== '' && from === undefined) return bad('from')
+          if (rawTo !== null && rawTo !== '' && to === undefined) return bad('to')
           const f = { project: url.searchParams.get('project') ?? undefined, from, to }
           switch (insightsMatch[1]) {
             case 'spend': return json(spendSeries(store.db, f))
@@ -80,8 +80,8 @@ export function startServer(config: Config) {
         if (path === '/api/sessions' && req.method === 'GET') {
           const rawFrom = url.searchParams.get('from'), rawTo = url.searchParams.get('to')
           const from = numParam(rawFrom), to = numParam(rawTo)
-          if (rawFrom !== null && from === undefined) return json({ error: 'invalid from' }, 400)
-          if (rawTo !== null && to === undefined) return json({ error: 'invalid to' }, 400)
+          if (rawFrom !== null && rawFrom !== '' && from === undefined) return json({ error: 'invalid from' }, 400)
+          if (rawTo !== null && rawTo !== '' && to === undefined) return json({ error: 'invalid to' }, 400)
           const q = url.searchParams.get('q') ?? undefined
           const project = url.searchParams.get('project') ?? undefined
           const status = url.searchParams.get('status') ?? undefined
