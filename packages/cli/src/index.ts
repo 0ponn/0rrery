@@ -6,6 +6,7 @@ import { startServer, loadConfig } from '@0rrery/server'
 import { startTailer, importSession, mapHookEvent, emitOps, type HookInput } from '@0rrery/claude-code'
 import { installHooks } from './install'
 import { importAll } from './sweep'
+import { runService } from './service'
 
 const [cmd, arg] = process.argv.slice(2)
 const url = process.env.ORRERY_URL ?? 'http://localhost:7317'
@@ -70,6 +71,10 @@ switch (cmd) {
     }
     console.log(r.emitted ? `imported ${r.ops} ops from ${r.files} file(s)` : `parse ok (${r.ops} ops) but server unreachable at ${url}`)
     process.exit(r.emitted ? 0 : 1)
+    break
+  }
+  case 'service': {
+    process.exit(runService(arg ?? '') ? 0 : 1)
     break
   }
   default:
