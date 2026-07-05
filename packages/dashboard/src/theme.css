@@ -27,7 +27,7 @@ select { background: var(--panel); color: var(--fg); border: 1px solid var(--lin
 .tabs button { background: var(--panel); color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 4px 12px; cursor: pointer; }
 .tabs button.active { color: var(--fg); border-color: var(--accent); }
 .waterfall { border: 1px solid var(--line); border-radius: 6px; }
-.wf-row { display: grid; grid-template-columns: 320px 1fr 90px; align-items: center; gap: 10px; padding: 5px 10px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.wf-row { display: grid; grid-template-columns: 320px 1fr 90px; align-items: center; gap: 10px; padding: 0 10px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .wf-row:hover { background: var(--panel); }
 .wf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kind { font-size: 10px; padding: 0 5px; border-radius: 3px; margin-right: 4px; background: var(--line); color: var(--dim); }
@@ -89,3 +89,16 @@ h1 a { color: var(--dim); text-decoration: none; }
 .perm-banner { color: var(--run); font-size: 0.85em; margin: 2px 0; }
 .fleet-card.stuck .perm-banner { color: var(--err); }
 .fleet-foot { color: var(--dim); font-size: 0.8em; margin-top: 6px; }
+.vlist { height: 70vh; overflow-y: auto; }
+.trace-split { display: flex; gap: 10px; align-items: flex-start; }
+.trace-split .waterfall { flex: 1; min-width: 0; }
+.wf-row.selected { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.span-panel { width: 360px; flex-shrink: 0; max-height: 70vh; overflow-y: auto; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.span-panel header { display: flex; gap: 8px; align-items: baseline; margin-bottom: 8px; }
+.span-panel .panel-name { overflow-wrap: anywhere; }
+.span-panel .close { margin-left: auto; background: none; border: none; color: var(--dim); cursor: pointer; font-size: 1.1em; }
+.panel-meta { display: grid; grid-template-columns: 80px 1fr; gap: 2px 8px; font-size: 0.9em; }
+.panel-meta dt { color: var(--dim); }
+.panel-event { font-size: 0.85em; color: var(--dim); margin: 2px 0; }
+.parent-link { color: var(--accent); cursor: pointer; }
+.ev-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
