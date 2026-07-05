@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { parseOps, type IngestOp, type Rejected } from '@0rrery/schema'
 import { Store } from './store'
 import { listSessions, getSessionDetail, getStats, type SessionFilter } from './queries'
-import { spendSeries, toolHealth, projectRollups, sprawlMap, externalSurface, fsFootprint, searchSessions, sessionSummary } from './insights'
+import { spendSeries, toolHealth, projectRollups, sprawlMap, externalSurface, fsFootprint, searchSessions, sessionSummary, fleetView } from './insights'
 import { LiveBus } from './livebus'
 import type { Config } from './config'
 
@@ -107,6 +107,8 @@ export function startServer(config: Config) {
         }
 
         if (path === '/api/stats' && req.method === 'GET') return json(getStats(store.db, qopts))
+
+        if (path === '/api/fleet' && req.method === 'GET') return json(fleetView(store.db, qopts))
 
         if (path.startsWith('/api/')) return json({ error: 'not found' }, 404)
 

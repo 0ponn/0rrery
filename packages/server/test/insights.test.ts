@@ -3,7 +3,7 @@ import { writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Store } from '../src/store'
-import { spendSeries, toolHealth, projectRollups, searchSessions, sprawlMap, externalSurface, fsFootprint, sessionSummary } from '../src/insights'
+import { spendSeries, toolHealth, projectRollups, searchSessions, sprawlMap, externalSurface, fsFootprint, sessionSummary, fleetView } from '../src/insights'
 import { estCost, resetPricesCache } from '../src/prices'
 
 // Day 1 = 2026-07-01 (ts 1782864000000), Day 2 = 2026-07-02 (+86400000)
@@ -196,4 +196,72 @@ test('sessionSummary aggregates one session compactly', () => {
 
 test('sessionSummary returns null for unknown id', () => {
   expect(sessionSummary(seeded().db, 'nope')).toBeNull()
+})
+
+const NOW = D1 + 1_000_000
+function fleetSeeded(mut: any[] = []) {
+  const store = new Store(':memory:')
+  store.applyOps([
+    // fA: active, open tool span 30s, unresolved permission 30s
+    { op: 'session.start', sessionId: 'fA', source: 'claude-code', project: 'alpha', ts: NOW - 60_000 },
+    { op: 'span.start', id: 'tool:fa1', sessionId: 'fA', parentId: null, kind: 'tool', name: 'Bash', ts: NOW - 30_000, attrs: {} },
+    { op: 'event', id: 'evt:perm:req:fa1', sessionId: 'fA', spanId: 'tool:fa1', type: 'permission.requested', ts: NOW - 30_000, attrs: {} },
+    // fB: active, permission resolved, span closed, llm tokens, more recent than fA
+    { op: 'session.start', sessionId: 'fB', source: 'claude-code', project: 'beta', ts: NOW - 50_000 },
+    { op: 'span.start', id: 'tool:fb1', sessionId: 'fB', parentId: null, kind: 'tool', name: 'Read', ts: NOW - 40_000, attrs: {} },
+    { op: 'event', id: 'evt:perm:req:fb1', sessionId: 'fB', spanId: 'tool:fb1', type: 'permission.requested', ts: NOW - 40_000, attrs: {} },
+    { op: 'event', id: 'evt:perm:res:fb1', sessionId: 'fB', spanId: 'tool:fb1', type: 'permission.resolved', ts: NOW - 39_000, attrs: { outcome: 'allowed' } },
+    { op: 'span.end', id: 'tool:fb1', ts: NOW - 38_000, status: 'ok' },
+    { op: 'span.start', id: 'llm:fb2', sessionId: 'fB', parentId: null, kind: 'llm', name: 'claude-sonnet-5', ts: NOW - 20_000, attrs: { input_tokens: 100, output_tokens: 200 } },
+    { op: 'span.end', id: 'llm:fb2', ts: NOW - 19_000, status: 'ok' },
+    // fC: ended — excluded
+    { op: 'session.start', sessionId: 'fC', source: 'claude-code', project: 'gamma', ts: NOW - 100_000 },
+    { op: 'session.end', sessionId: 'fC', ts: NOW - 90_000 },
+    ...mut,
+  ])
+  return store
+}
+const FOPTS = { now: NOW, staleAfterMs: 300_000 }
+
+test('fleetView: pending permission included, resolved excluded, sorted first', () => {
+  const cards = fleetView(fleetSeeded().db, FOPTS)
+  expect(cards.map(c => c.id)).toEqual(['fA', 'fB'])  // fA has pending perms despite fB being fresher; fC ended
+  expect(cards[0].pending_permissions).toEqual([{ tool: 'Bash', waiting_ms: 30_000 }])
+  expect(cards[1].pending_permissions).toEqual([])
+})
+
+test('fleetView: current is newest open tool span, null when none open', () => {
+  const cards = fleetView(fleetSeeded().db, FOPTS)
+  expect(cards[0].current).toEqual({ kind: 'tool', name: 'Bash', running_ms: 30_000 })
+  expect(cards[1].current).toBeNull()
+})
+
+test('fleetView: tokens and null-honest cost', () => {
+  const fb = fleetView(fleetSeeded().db, FOPTS).find(c => c.id === 'fB')!
+  expect(fb).toMatchObject({ tokens_in: 100, tokens_out: 200 })
+  expect(fb.est_cost).toBeCloseTo(100 / 1e6 * 3 + 200 / 1e6 * 15)
+  expect(fb.idle_ms).toBe(19_000)
+})
+
+test('fleetView: stuck on old pending permission and old open tool', () => {
+  const oldPerm = fleetSeeded([
+    { op: 'session.start', sessionId: 'fD', source: 'claude-code', project: 'delta', ts: NOW - 400_000 },
+    { op: 'span.start', id: 'tool:fd1', sessionId: 'fD', parentId: null, kind: 'tool', name: 'Write', ts: NOW - 130_000, attrs: {} },
+    { op: 'event', id: 'evt:perm:req:fd1', sessionId: 'fD', spanId: 'tool:fd1', type: 'permission.requested', ts: NOW - 130_000, attrs: {} },
+  ])
+  expect(fleetView(oldPerm.db, FOPTS).find(c => c.id === 'fD')!.stuck).toBe(true)
+  const oldTool = fleetSeeded([
+    { op: 'session.start', sessionId: 'fE', source: 'claude-code', project: 'eps', ts: NOW - 800_000 },
+    { op: 'span.start', id: 'mcp:fe1', sessionId: 'fE', parentId: null, kind: 'mcp', name: 'mcp__x__y', ts: NOW - 700_000, attrs: {} },
+  ])
+  expect(fleetView(oldTool.db, FOPTS).find(c => c.id === 'fE')!.stuck).toBe(true)
+  expect(fleetView(fleetSeeded().db, FOPTS).every(c => !c.stuck)).toBe(true)  // 30s pending isn't stuck
+})
+
+test('fleetView: effective stale past the cutoff', () => {
+  const cards = fleetView(fleetSeeded().db, { now: NOW, staleAfterMs: 10_000 })
+  expect(cards.every(c => c.effective === 'stale')).toBe(true)
+  const fresh = fleetView(fleetSeeded().db, { now: NOW, staleAfterMs: 25_000 })
+  expect(fresh.find(c => c.id === 'fB')!.effective).toBe('active')
+  expect(fresh.find(c => c.id === 'fA')!.effective).toBe('stale')
 })

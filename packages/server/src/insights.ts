@@ -252,3 +252,50 @@ export function sessionSummary(db: Database, id: string): SessionSummary | null 
     first_user_message: first?.p ?? null,
   }
 }
+
+const STUCK_PERMISSION_MS = 120_000
+const STUCK_TOOL_MS = 600_000
+
+export type FleetCard = {
+  id: string; project: string | null
+  started_at: number; last_event_at: number; idle_ms: number
+  effective: 'active' | 'stale'
+  current: { kind: string; name: string; running_ms: number } | null
+  pending_permissions: Array<{ tool: string; waiting_ms: number }>
+  tokens_in: number; tokens_out: number; est_cost: number | null
+  stuck: boolean
+}
+
+export function fleetView(db: Database, opts: { now: number; staleAfterMs: number }): FleetCard[] {
+  const sessions = db.query(`SELECT * FROM sessions WHERE status = 'active' ORDER BY last_event_at DESC`).all() as any[]
+  const cards = sessions.map(s => {
+    const open = db.query(`SELECT kind, name, started_at FROM spans
+      WHERE session_id = ? AND ended_at IS NULL AND kind IN ('tool', 'mcp', 'agent')
+      ORDER BY started_at DESC LIMIT 1`).get(s.id) as any
+    const pend = db.query(`SELECT COALESCE(sp.name, '?') tool, e.ts ts FROM events e
+      LEFT JOIN spans sp ON sp.id = e.span_id
+      WHERE e.session_id = ? AND e.type = 'permission.requested'
+        AND NOT EXISTS (SELECT 1 FROM events r WHERE r.span_id = e.span_id AND r.type = 'permission.resolved')
+      ORDER BY e.ts`).all(s.id) as any[]
+    const models = db.query(`SELECT name model,
+        SUM(COALESCE(json_extract(attrs, '$.input_tokens'), 0)) tin,
+        SUM(COALESCE(json_extract(attrs, '$.output_tokens'), 0)) tout
+      FROM spans WHERE session_id = ? AND kind = 'llm' GROUP BY name`).all(s.id) as any[]
+    const costs = models.map(m => estCost(m.model, m.tin, m.tout)).filter((c): c is number => c !== null)
+    const current = open ? { kind: open.kind, name: open.name, running_ms: opts.now - open.started_at } : null
+    const pending_permissions = pend.map(p => ({ tool: p.tool, waiting_ms: opts.now - p.ts }))
+    const stuck = pending_permissions.some(p => p.waiting_ms > STUCK_PERMISSION_MS)
+      || (current !== null && (current.kind === 'tool' || current.kind === 'mcp') && current.running_ms > STUCK_TOOL_MS)
+    return {
+      id: s.id, project: s.project, started_at: s.started_at, last_event_at: s.last_event_at,
+      idle_ms: opts.now - s.last_event_at,
+      effective: (s.last_event_at >= opts.now - opts.staleAfterMs ? 'active' : 'stale') as 'active' | 'stale',
+      current, pending_permissions,
+      tokens_in: models.reduce((a, m) => a + m.tin, 0), tokens_out: models.reduce((a, m) => a + m.tout, 0),
+      est_cost: costs.length ? costs.reduce((a, c) => a + c, 0) : null,
+      stuck,
+    }
+  })
+  return cards.sort((a, b) =>
+    (b.pending_permissions.length ? 1 : 0) - (a.pending_permissions.length ? 1 : 0) || b.last_event_at - a.last_event_at)
+}

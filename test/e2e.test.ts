@@ -99,3 +99,25 @@ test('session summary endpoint is compact and 404s unknowns', async () => {
   expect((await fetch(`${srv.url}/api/sessions/nope/summary`)).status).toBe(404)
   srv.stop()
 })
+
+test('fleet endpoint reports a live session with pending permission', async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), '0rrery-e2e-fleet-'))
+  const srv = startServer(loadConfig({ port: 0, dbPath: ':memory:', dashboardDist: null, dataDir }))
+  const now = Date.now()
+  const post = (ops: any[]) => fetch(`${srv.url}/api/ingest`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ops),
+  })
+  await post([
+    { op: 'session.start', sessionId: 'live1', source: 'api', project: 'demo', ts: now - 10_000 },
+    { op: 'span.start', id: 'tool:lv1', sessionId: 'live1', parentId: null, kind: 'tool', name: 'Bash', ts: now - 5_000, attrs: {} },
+    { op: 'event', id: 'evt:perm:req:lv1', sessionId: 'live1', spanId: 'tool:lv1', type: 'permission.requested', ts: now - 5_000, attrs: {} },
+  ])
+  const fleet = await fetch(`${srv.url}/api/fleet`).then(r => r.json()) as any[]
+  const card = fleet.find(c => c.id === 'live1')!
+  expect(card.project).toBe('demo')
+  expect(card.current.name).toBe('Bash')
+  expect(card.pending_permissions).toHaveLength(1)
+  expect(card.pending_permissions[0].tool).toBe('Bash')
+  expect(card.stuck).toBe(false)
+  srv.stop()
+})
