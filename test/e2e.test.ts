@@ -20,7 +20,7 @@ test('fixture transcript → import → query shows full trace', async () => {
 
   const detail = await (await fetch(`${srv.url}/api/sessions/fix1`)).json()
   const kinds = detail.spans.map((s: any) => s.kind).sort()
-  expect(kinds).toEqual(['agent', 'llm', 'llm', 'llm', 'tool', 'tool'])
+  expect(kinds).toEqual(['agent', 'llm', 'llm', 'llm', 'llm', 'tool', 'tool', 'tool'])
 
   const agent = detail.spans.find((s: any) => s.id === 'agent:a1b2c3d4e5')
   expect(agent).toMatchObject({ parent_id: 'tool:toolu_ag1', kind: 'agent', name: 'general-purpose' })
@@ -30,6 +30,10 @@ test('fixture transcript → import → query shows full trace', async () => {
   expect(subLlm.parent_id).toBe('agent:a1b2c3d4e5')
 
   const types = detail.events.map((e: any) => e.type).sort()
-  expect(types).toEqual(['message.assistant', 'message.assistant', 'message.user', 'message.user', 'session.compact', 'session.compact_summary'])
+  expect(types).toEqual(['message.assistant', 'message.assistant', 'message.user', 'message.user', 'permission.resolved', 'session.compact', 'session.compact_summary'])
+
+  const denied = detail.spans.find((s: any) => s.id === 'tool:toolu_dn1')
+  expect(denied).toMatchObject({ status: 'error', ended_at: Date.parse('2026-07-04T12:00:09.000Z') })
+
   srv.stop()
 })

@@ -104,6 +104,34 @@ test('linkage regex only fires on Agent tool results', () => {
   expect((links[0] as any).parentId).toBe('tool:tu_agent')
 })
 
+const denyLine = (tur: unknown) => JSON.stringify({
+  type: 'user', toolUseResult: tur,
+  message: { role: 'user', content: [{ tool_use_id: 'toolu_dn1', type: 'tool_result', is_error: true, content: "The user doesn't want to proceed with this tool use. The tool use was rejected." }] },
+  uuid: 'ud1', timestamp: '2026-07-05T12:00:00.000Z', cwd: '/p/x', sessionId: 'dn1', gitBranch: 'main',
+})
+
+test('user rejection marker emits denial event and closes the span', () => {
+  const ops = parseTranscriptLine(denyLine('User rejected tool use'), newTranscriptState())
+  const evt = ops.find(o => o.op === 'event' && (o as any).type === 'permission.resolved') as any
+  expect(evt).toMatchObject({ id: 'evt:perm:res:toolu_dn1', spanId: 'tool:toolu_dn1', attrs: { outcome: 'denied', source: 'user' } })
+  const end = ops.find(o => o.op === 'span.end') as any
+  expect(end).toMatchObject({ id: 'tool:toolu_dn1', status: 'error', attrs: { denied: true } })
+})
+
+test('ordinary error toolUseResult strings emit no denial ops', () => {
+  for (const tur of ['Error: Exit code 1', 'Error: File has not been read yet. Read it first before writing to it.', { stdout: 'x' }, undefined]) {
+    const ops = parseTranscriptLine(denyLine(tur), newTranscriptState())
+    expect(ops.some(o => o.op === 'event' && (o as any).type === 'permission.resolved')).toBe(false)
+    expect(ops.some(o => o.op === 'span.end')).toBe(false)
+  }
+})
+
+test('denial blocks without tool_use_id emit nothing', () => {
+  const l = JSON.stringify({ type: 'user', toolUseResult: 'User rejected tool use', message: { role: 'user', content: [{ type: 'tool_result', is_error: true, content: 'rejected' }] }, uuid: 'ud2', timestamp: '2026-07-05T12:00:01.000Z', cwd: '/p/x', sessionId: 'dn1' })
+  const ops = parseTranscriptLine(l, newTranscriptState())
+  expect(ops.filter(o => o.op !== 'session.start')).toHaveLength(0)
+})
+
 test('linkage handles multiple tool_results per line and object content', () => {
   const state = newTranscriptState()
   const setup = JSON.stringify({ type: 'assistant', message: { id: 'm_multi', model: 'x', role: 'assistant', content: [{ type: 'tool_use', id: 'tu_a1', name: 'Agent', input: {} }, { type: 'tool_use', id: 'tu_a2', name: 'Task', input: {} }], usage: {} }, uuid: 'u_multi', timestamp: '2026-07-04T12:00:00.000Z', cwd: '/p/x', sessionId: 'g2' })

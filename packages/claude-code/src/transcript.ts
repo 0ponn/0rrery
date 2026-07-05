@@ -18,6 +18,7 @@ type Line = {
   uuid?: string; isSidechain?: boolean; agentId?: string; attributionAgent?: string
   subtype?: string; compactMetadata?: Record<string, unknown>; isCompactSummary?: boolean
   message?: { id?: string; model?: string; role?: string; content?: unknown; usage?: Record<string, number> }
+  toolUseResult?: unknown
 }
 
 export function parseTranscriptLine(raw: string, state: TranscriptState): IngestOp[] {
@@ -63,6 +64,17 @@ export function parseTranscriptLine(raw: string, state: TranscriptState): Ingest
   }
 
   if (line.type === 'user' && Array.isArray(line.message?.content)) {
+    if (line.toolUseResult === 'User rejected tool use') {
+      for (const block of line.message.content as any[]) {
+        if (block?.type !== 'tool_result' || !block.tool_use_id) continue
+        ops.push({
+          op: 'event', id: `evt:perm:res:${block.tool_use_id}`, sessionId: sid, spanId: `tool:${block.tool_use_id}`,
+          type: 'permission.resolved', ts, attrs: { outcome: 'denied', source: 'user' },
+        })
+        ops.push({ op: 'span.end', id: `tool:${block.tool_use_id}`, ts, status: 'error', attrs: { denied: true } })
+      }
+    }
+
     for (const block of line.message.content as any[]) {
       if (block?.type !== 'tool_result' || !block.tool_use_id) continue
       if (!state.agentToolUseIds.has(block.tool_use_id)) continue
