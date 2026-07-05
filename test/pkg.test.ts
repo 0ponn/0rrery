@@ -12,7 +12,7 @@ test('npm pack artifact installs globally and serves the dashboard', async () =>
   const packDest = mkdtempSync(join(tmpdir(), '0rrery-pack-'))
   r = Bun.spawnSync(['npm', 'pack', '--pack-destination', packDest], { cwd: join(root, 'dist-pkg') })
   expect(r.exitCode).toBe(0)
-  const tarball = join(packDest, '0rrery-0.1.0.tgz')
+  const tarball = join(packDest, '0rrery-0.1.1.tgz')
   expect(existsSync(tarball)).toBe(true)
 
   const prefix = mkdtempSync(join(tmpdir(), '0rrery-prefix-'))

@@ -28,7 +28,7 @@ cpSync(join(root, 'packages/cli/skill'), join(out, 'skill'), { recursive: true }
 
 writeFileSync(join(out, 'package.json'), JSON.stringify({
   name: '0rrery',
-  version: '0.1.0',
+  version: '0.1.1',
   description: 'Trace-first, local-first observability for AI agent workflows',
   license: 'MIT',
   repository: { type: 'git', url: 'https://github.com/0ponn/0rrery' },
