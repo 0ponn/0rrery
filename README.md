@@ -45,6 +45,10 @@ Requires [Bun](https://bun.sh) ≥ 1.1. Claude Code hooks require the global ins
 
 `init` installs a skill at `~/.claude/skills/0rrery/` that teaches Claude to answer questions like "what did I spend this week", "what keeps failing in this repo", or "what did my last session do" by querying the local API. Skip with `--no-skill`; remove with `rm -rf ~/.claude/skills/0rrery`.
 
+## Releases
+
+Versions are published by CI via npm Trusted Publishing: bump the version in `scripts/build-pkg.ts`, tag `vX.Y.Z`, push the tag — the workflow tests, stages, and publishes with provenance. No tokens.
+
 ## Upgrade
 
 ```

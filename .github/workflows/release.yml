@@ -1,0 +1,31 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write   # npm Trusted Publishing (OIDC)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4   # npm >= 11.5 for OIDC publish
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - run: bun test
+      - run: bunx tsc --noEmit
+      - run: bun run build:pkg
+      - name: verify tag matches package version
+        run: |
+          V=$(node -p "require('./dist-pkg/package.json').version")
+          [ "v$V" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME != package v$V"; exit 1; }
+      - name: publish (OIDC, provenance)
+        working-directory: dist-pkg
+        run: npm publish --provenance
