@@ -79,3 +79,23 @@ test('insights endpoints answer over imported fixture data', async () => {
 
   srv.stop()
 })
+
+test('session summary endpoint is compact and 404s unknowns', async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), '0rrery-e2e-sum-'))
+  const srv = startServer(loadConfig({ port: 0, dbPath: ':memory:', dashboardDist: null, dataDir }))
+  const fixture = new URL('../packages/claude-code/fixtures/fix1.jsonl', import.meta.url).pathname
+  const { importSession } = await import('@0rrery/claude-code')
+  await importSession(fixture, srv.url, { finalize: true })
+
+  const r = await fetch(`${srv.url}/api/sessions/fix1/summary`)
+  expect(r.status).toBe(200)
+  const s = await r.json() as any
+  expect(s.project).toBe('myproj')
+  expect(s.denials).toBe(1)
+  expect(s.models.length).toBeGreaterThan(0)
+  expect(s.first_user_message).toBeTruthy()
+  expect(JSON.stringify(s).length).toBeLessThan(2000)  // the whole point: compact
+
+  expect((await fetch(`${srv.url}/api/sessions/nope/summary`)).status).toBe(404)
+  srv.stop()
+})

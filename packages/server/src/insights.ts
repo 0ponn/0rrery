@@ -207,3 +207,48 @@ export function fsFootprint(db: Database, f: InsightFilter) {
   const top = (m: Map<string, Agg>) => [...m.values()].sort((a, b) => b.touches - a.touches).slice(0, 100)
   return { dirs: top(dirs), files: top(files) }
 }
+
+export type SessionSummary = {
+  id: string; project: string | null; status: string; started_at: number; last_event_at: number
+  duration_ms: number; tokens_in: number; tokens_out: number; est_cost: number | null
+  models: Array<{ model: string; calls: number }>
+  top_tools: Array<{ name: string; kind: string; calls: number; errors: number }>
+  errors: number; denials: number; subagents: number
+  user_messages: number; assistant_turns: number; first_user_message: string | null
+}
+
+export function sessionSummary(db: Database, id: string): SessionSummary | null {
+  const s = db.query('SELECT * FROM sessions WHERE id = ?').get(id) as any
+  if (!s) return null
+  const models = db.query(`SELECT name model, COUNT(*) calls,
+      SUM(COALESCE(json_extract(attrs, '$.input_tokens'), 0)) tin,
+      SUM(COALESCE(json_extract(attrs, '$.output_tokens'), 0)) tout
+    FROM spans WHERE session_id = ? AND kind = 'llm'
+    GROUP BY name ORDER BY calls DESC, model`).all(id) as any[]
+  const top_tools = db.query(`SELECT name, kind, COUNT(*) calls, SUM(status = 'error') errors
+    FROM spans WHERE session_id = ? AND kind IN ('tool', 'mcp')
+    GROUP BY name, kind ORDER BY calls DESC LIMIT 10`).all(id) as any[]
+  const counts = db.query(`SELECT
+      COALESCE(SUM(kind IN ('tool', 'mcp') AND status = 'error'), 0) errors,
+      COALESCE(SUM(kind = 'agent'), 0) subagents
+    FROM spans WHERE session_id = ?`).get(id) as any
+  const denials = (db.query(`SELECT COUNT(*) c FROM events WHERE session_id = ?
+    AND type = 'permission.resolved' AND json_extract(attrs, '$.outcome') = 'denied'`).get(id) as any).c
+  const msgs = db.query(`SELECT
+      COALESCE(SUM(type = 'message.user'), 0) user_messages,
+      COALESCE(SUM(type = 'message.assistant'), 0) assistant_turns
+    FROM events WHERE session_id = ?`).get(id) as any
+  const first = db.query(`SELECT json_extract(attrs, '$.preview') p FROM events
+    WHERE session_id = ? AND type = 'message.user' ORDER BY ts LIMIT 1`).get(id) as any
+  const costs = models.map(m => estCost(m.model, m.tin, m.tout)).filter((c): c is number => c !== null)
+  return {
+    id: s.id, project: s.project, status: s.status, started_at: s.started_at, last_event_at: s.last_event_at,
+    duration_ms: s.last_event_at - s.started_at,
+    tokens_in: models.reduce((a, m) => a + m.tin, 0), tokens_out: models.reduce((a, m) => a + m.tout, 0),
+    est_cost: costs.length ? costs.reduce((a, c) => a + c, 0) : null,
+    models: models.map(m => ({ model: m.model, calls: m.calls })),
+    top_tools, errors: counts.errors, denials, subagents: counts.subagents,
+    user_messages: msgs.user_messages, assistant_turns: msgs.assistant_turns,
+    first_user_message: first?.p ?? null,
+  }
+}

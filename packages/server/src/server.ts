@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { parseOps, type IngestOp, type Rejected } from '@0rrery/schema'
 import { Store } from './store'
 import { listSessions, getSessionDetail, getStats, type SessionFilter } from './queries'
-import { spendSeries, toolHealth, projectRollups, sprawlMap, externalSurface, fsFootprint, searchSessions } from './insights'
+import { spendSeries, toolHealth, projectRollups, sprawlMap, externalSurface, fsFootprint, searchSessions, sessionSummary } from './insights'
 import { LiveBus } from './livebus'
 import type { Config } from './config'
 
@@ -90,6 +90,12 @@ export function startServer(config: Config) {
             ? searchSessions(store.db, { q, project, status, from, to, limit }, qopts)
             : listSessions(store.db, { project, status: status as SessionFilter['status'], limit, offset: numParam(url.searchParams.get('offset')) }, qopts)
           return json(rows.map(s => ({ ...s, effectiveStatus: effectiveStatus(s, qopts.now, config.staleAfterMs) })))
+        }
+
+        const sm = path.match(/^\/api\/sessions\/([^/]+)\/summary$/)
+        if (sm && req.method === 'GET') {
+          const s = sessionSummary(store.db, decodeURIComponent(sm[1]))
+          return s ? json(s) : json({ error: `session ${decodeURIComponent(sm[1])}: 404` }, 404)
         }
 
         const m = path.match(/^\/api\/sessions\/([^/]+)$/)

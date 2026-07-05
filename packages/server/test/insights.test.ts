@@ -3,7 +3,7 @@ import { writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Store } from '../src/store'
-import { spendSeries, toolHealth, projectRollups, searchSessions, sprawlMap, externalSurface, fsFootprint } from '../src/insights'
+import { spendSeries, toolHealth, projectRollups, searchSessions, sprawlMap, externalSurface, fsFootprint, sessionSummary } from '../src/insights'
 import { estCost, resetPricesCache } from '../src/prices'
 
 // Day 1 = 2026-07-01 (ts 1782864000000), Day 2 = 2026-07-02 (+86400000)
@@ -176,4 +176,24 @@ test('sprawlMap survives self-referential parent ids', () => {
   ])
   const { nodes } = sprawlMap(store.db, {})
   expect(nodes.find(n => n.id === 'tool:Weird')!.count).toBe(1)
+})
+
+test('sessionSummary aggregates one session compactly', () => {
+  const s = sessionSummary(seeded().db, 'sA')!
+  expect(s).toMatchObject({
+    id: 'sA', project: 'alpha', tokens_in: 1010, tokens_out: 2020,
+    denials: 1, subagents: 1, user_messages: 1, assistant_turns: 0,
+    first_user_message: 'fix the flaky login test',
+  })
+  expect(s.models).toEqual([
+    { model: 'claude-sonnet-5', calls: 1 }, { model: 'mystery-model', calls: 1 },
+  ])
+  expect(s.top_tools).toEqual([{ name: 'Bash', kind: 'tool', calls: 2, errors: 2 }])
+  expect(s.errors).toBe(2)
+  expect(s.est_cost).toBeCloseTo(1000 / 1e6 * 3 + 2000 / 1e6 * 15)  // sonnet only; mystery excluded
+  expect(s.duration_ms).toBeGreaterThanOrEqual(0)
+})
+
+test('sessionSummary returns null for unknown id', () => {
+  expect(sessionSummary(seeded().db, 'nope')).toBeNull()
 })
