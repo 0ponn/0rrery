@@ -58,6 +58,10 @@ export function SessionDetailView({ id }: { id: string }) {
   const trailing = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    lastFetch.current = 0
+    if (trailing.current) { clearTimeout(trailing.current); trailing.current = null }
+    setDetail(null)
+    setSelectedId(null)
     let ws: WebSocket | null = null
     let cancelled = false
     let recheck: ReturnType<typeof setTimeout> | null = null

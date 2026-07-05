@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 
 export const ROW_H = 24
 
@@ -10,11 +10,10 @@ export function visibleRange(scrollTop: number, viewportH: number, rowH: number,
 }
 
 export function useVirtualRows(total: number, rowH = ROW_H) {
-  const ref = useRef<HTMLDivElement | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportH, setViewportH] = useState(800)
-  useLayoutEffect(() => {
-    if (ref.current) setViewportH(ref.current.clientHeight)
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    if (el) setViewportH(el.clientHeight)
   }, [])
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget
