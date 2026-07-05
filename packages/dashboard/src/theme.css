@@ -54,6 +54,7 @@ h1 a { color: var(--dim); text-decoration: none; }
 .perm-badge.denied { background: color-mix(in srgb, var(--err) 20%, transparent); color: var(--err); }
 .perm-badge.pending { background: color-mix(in srgb, var(--run) 20%, transparent); color: var(--run); }
 .badge.stale { background: color-mix(in srgb, var(--run) 12%, transparent); color: color-mix(in srgb, var(--run) 60%, var(--dim)); }
+.badge.stuck { background: color-mix(in srgb, var(--err) 25%, transparent); }
 .topo-wrap { border: 1px solid var(--line); border-radius: 6px; padding: 8px 0 0; }
 .topo-legend { display: flex; gap: 16px; padding: 4px 14px 8px; color: var(--dim); font-size: 12px; align-items: center; }
 .topo-chip { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
@@ -91,6 +92,7 @@ h1 a { color: var(--dim); text-decoration: none; }
 .fleet-card.stuck .perm-banner { color: var(--err); }
 .fleet-foot { color: var(--dim); font-size: 0.8em; margin-top: 6px; }
 .vlist { height: 70vh; overflow-y: auto; }
+.vlist.feed { max-height: none; }
 .trace-split { display: flex; gap: 10px; align-items: flex-start; }
 .trace-split .waterfall { flex: 1; min-width: 0; }
 .wf-row.selected { background: color-mix(in srgb, var(--accent) 12%, transparent); }

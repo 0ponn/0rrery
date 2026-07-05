@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fmtDuration, fmtTime, fmtTokens } from '../format'
 import { displayKind } from '@0rrery/schema/src/names'
 import type { SpanRow, EventRow } from '../types'
@@ -20,11 +20,13 @@ export function SpanPanel({ span, events, parent, onClose, onSelectParent }: {
 }) {
   const [expanded, setExpanded] = useState(false)
   useEffect(() => setExpanded(false), [span.id])
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [])
 
   let parsed: any = null
   try { parsed = JSON.parse(span.attrs) } catch {}
@@ -42,7 +44,7 @@ export function SpanPanel({ span, events, parent, onClose, onSelectParent }: {
       <dl className="panel-meta">
         <dt>started</dt><dd>{fmtTime(span.started_at)}</dd>
         <dt>duration</dt><dd>{span.ended_at ? fmtDuration(span.ended_at - span.started_at) : 'running'}</dd>
-        {span.kind === 'llm' && parsed && <>
+        {span.kind === 'llm' && parsed && (parsed.input_tokens || parsed.output_tokens) && <>
           <dt>tokens</dt>
           <dd>{fmtTokens(parsed.input_tokens ?? 0)} in / {fmtTokens(parsed.output_tokens ?? 0)} out
             {parsed.cache_read_input_tokens ? ` · ${fmtTokens(parsed.cache_read_input_tokens)} cached` : ''}</dd>

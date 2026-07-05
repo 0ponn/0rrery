@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchInsights } from '../api'
-import { fmtDuration, fmtTokens } from '../format'
+import { fmtDuration, fmtTokens, fmtCost } from '../format'
 import { TopoGraph } from './TopoGraph'
 import type { TopoNode, TopoEdge } from '../topology'
 
@@ -201,7 +201,7 @@ function ProjectsPanel({ filter }: { filter: Filter }) {
                 <td>{p.sessions}</td>
                 <td>{fmtDuration(p.wall_ms)}</td>
                 <td>{fmtTokens(p.tokens_in + p.tokens_out)}</td>
-                <td>{p.est_cost !== null ? `$${p.est_cost.toFixed(2)}` : '—'}</td>
+                <td>{p.est_cost !== null ? fmtCost(p.est_cost) : '—'}</td>
               </tr>
             ))}
           </tbody>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchFleet, liveSocket } from '../api'
-import { fmtTime, fmtDuration, fmtTokens } from '../format'
+import { fmtTime, fmtDuration, fmtTokens, fmtCost } from '../format'
 import type { FleetCard } from '../types'
 
 type FeedItem = { key: string; ts: number; sessionId: string; label: string }
@@ -23,7 +23,7 @@ function Card({ c, extra }: { c: FleetCard; extra: number }) {
     <a className={`fleet-card${c.stuck ? ' stuck' : ''}`} href={`#/session/${encodeURIComponent(c.id)}`}>
       <header>
         <strong>{c.project ?? c.id.slice(0, 8)}</strong>
-        <span className={`badge ${c.effective}`}>{c.stuck ? 'stuck' : c.effective}</span>
+        <span className={`badge ${c.stuck ? 'stuck' : c.effective}`}>{c.stuck ? 'stuck' : c.effective}</span>
       </header>
       <div className="fleet-now">
         {c.current
@@ -35,7 +35,7 @@ function Card({ c, extra }: { c: FleetCard; extra: number }) {
       ))}
       <footer className="fleet-foot">
         {fmtTokens(c.tokens_in)} in / {fmtTokens(c.tokens_out)} out
-        {c.est_cost !== null && <> · ${c.est_cost.toFixed(2)} est.</>}
+        {c.est_cost !== null && <> · {fmtCost(c.est_cost)} est.</>}
       </footer>
     </a>
   )
@@ -68,13 +68,27 @@ export function LiveView() {
     refresh()
     const poll = setInterval(refresh, 5000)
     const timers = setInterval(() => tick(t => t + 1), 1000)
-    const ws = liveSocket('*', ops => {
+    const onOps = (ops: unknown[]) => {
       refresh()
       if (pausedRef.current) return
       const items = ops.map(opToFeedItem).filter(Boolean) as FeedItem[]
       setFeed(prev => [...items.reverse(), ...prev].slice(0, 500))
-    })
-    return () => { cancelled = true; clearInterval(poll); clearInterval(timers); ws.close() }
+    }
+    let ws: WebSocket
+    let reconnect: ReturnType<typeof setTimeout> | null = null
+    const connect = () => {
+      ws = liveSocket('*', onOps)
+      // The 5s fleet poll already covers data; this just keeps the live feed flowing again.
+      ws.onclose = () => { if (!cancelled) reconnect = setTimeout(connect, 5000) }
+    }
+    connect()
+    return () => {
+      cancelled = true
+      clearInterval(poll); clearInterval(timers)
+      if (reconnect) clearTimeout(reconnect)
+      ws.onclose = null
+      ws.close()
+    }
   }, [])
 
   const extra = Date.now() - fetchedAt.current
