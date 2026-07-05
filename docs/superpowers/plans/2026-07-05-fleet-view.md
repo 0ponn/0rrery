@@ -404,17 +404,17 @@ Then in the browser, open `http://localhost:7317/#/live` and verify WITH YOUR EY
 2. Timers tick: two screenshots ~4s apart show running/idle values advancing without a fetch.
 3. Pending-permission path — inject a synthetic one and watch it surface:
 ```bash
-curl -s -X POST localhost:7317/api/ingest -H 'Content-Type: application/json' -d "{\"ops\":[
+curl -s -X POST localhost:7317/api/ingest -H 'Content-Type: application/json' -d "[
   {\"op\":\"session.start\",\"sessionId\":\"fleet-demo\",\"source\":\"api\",\"project\":\"fleet-demo\",\"ts\":$(date +%s%3N)},
   {\"op\":\"span.start\",\"id\":\"tool:fleetdemo1\",\"sessionId\":\"fleet-demo\",\"parentId\":null,\"kind\":\"tool\",\"name\":\"Bash\",\"ts\":$(date +%s%3N),\"attrs\":{}},
-  {\"op\":\"event\",\"id\":\"evt:perm:req:fleetdemo1\",\"sessionId\":\"fleet-demo\",\"spanId\":\"tool:fleetdemo1\",\"type\":\"permission.requested\",\"ts\":$(date +%s%3N),\"attrs\":{}}]}"
+  {\"op\":\"event\",\"id\":\"evt:perm:req:fleetdemo1\",\"sessionId\":\"fleet-demo\",\"spanId\":\"tool:fleetdemo1\",\"type\":\"permission.requested\",\"ts\":$(date +%s%3N),\"attrs\":{}}]"
 ```
 Expect: within ~5s the fleet-demo card appears FIRST (pending sort), amber banner "⏳ Bash awaiting approval …" counting up. Screenshot it. Then clean up so it doesn't linger as a stale card:
 ```bash
-curl -s -X POST localhost:7317/api/ingest -H 'Content-Type: application/json' -d "{\"ops\":[
+curl -s -X POST localhost:7317/api/ingest -H 'Content-Type: application/json' -d "[
   {\"op\":\"event\",\"id\":\"evt:perm:res:fleetdemo1\",\"sessionId\":\"fleet-demo\",\"spanId\":\"tool:fleetdemo1\",\"type\":\"permission.resolved\",\"ts\":$(date +%s%3N),\"attrs\":{\"outcome\":\"allowed\"}},
   {\"op\":\"span.end\",\"id\":\"tool:fleetdemo1\",\"ts\":$(date +%s%3N),\"status\":\"ok\"},
-  {\"op\":\"session.end\",\"sessionId\":\"fleet-demo\",\"ts\":$(date +%s%3N)}]}"
+  {\"op\":\"session.end\",\"sessionId\":\"fleet-demo\",\"ts\":$(date +%s%3N)}]"
 ```
 Verify the card drops off (session ended). Report all OBSERVED, screenshots included.
 
