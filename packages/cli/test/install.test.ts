@@ -42,3 +42,27 @@ test('re-running install on a v1 settings file adds only the two new permission 
   const { added } = installHooks(dir, 'bun /x/hook.ts')
   expect(added.sort()).toEqual(['PermissionDenied', 'PermissionRequest'])
 })
+
+test('replaces legacy 0rrery hook entries instead of stacking', () => {
+  const dir = mkdtempSync(join(tmpdir(), '0rrery-cli-'))
+  installHooks(dir, 'bun /home/dev/Documents/0pon/commercial/0rrery/packages/claude-code/src/hook.ts')
+  const { removed } = installHooks(dir, '0rrery hook')
+  expect(removed).toBeGreaterThan(0)
+  const s = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))
+  for (const entries of Object.values(s.hooks) as any[]) {
+    const ours = entries.flatMap((e: any) => e.hooks ?? []).filter((h: any) => h.command.includes('0rrery'))
+    expect(ours).toHaveLength(1)
+    expect(ours[0].command).toBe('0rrery hook')
+  }
+})
+
+test('leaves non-0rrery hooks alone and re-run removes nothing', () => {
+  const dir = mkdtempSync(join(tmpdir(), '0rrery-cli-'))
+  writeFileSync(join(dir, 'settings.json'), JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'rtk notify' }] }] } }))
+  installHooks(dir, '0rrery hook')
+  const again = installHooks(dir, '0rrery hook')
+  expect(again.removed).toBe(0)
+  expect(again.added).toHaveLength(0)
+  const s = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))
+  expect(s.hooks.Stop.some((e: any) => e.hooks.some((h: any) => h.command === 'rtk notify'))).toBe(true)
+})
