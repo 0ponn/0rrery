@@ -8,8 +8,9 @@ export type Config = {
 }
 
 export function loadConfig(overrides: Partial<Config> = {}): Config {
-  const dataDir = overrides.dataDir ?? join(homedir(), '.0rrery')
-  const dist = resolve(import.meta.dir, '../../dashboard/dist')
+  const dataDir = overrides.dataDir ?? process.env.ORRERY_DATA_DIR ?? join(homedir(), '.0rrery')
+  const distCandidates = [join(import.meta.dir, 'public'), resolve(import.meta.dir, '../../dashboard/dist')]
+  const dist = distCandidates.find(d => existsSync(d))
   const envPort = Number(process.env.ORRERY_PORT)
   const envStale = Number(process.env.ORRERY_STALE_MS)
   return {
@@ -18,7 +19,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     host: overrides.host ?? process.env.ORRERY_HOST ?? '127.0.0.1',
     dbPath: overrides.dbPath ?? process.env.ORRERY_DB ?? join(dataDir, '0rrery.db'),
     retentionDays: overrides.retentionDays ?? 90,
-    dashboardDist: overrides.dashboardDist !== undefined ? overrides.dashboardDist : (existsSync(dist) ? dist : null),
+    dashboardDist: overrides.dashboardDist !== undefined ? overrides.dashboardDist : (dist ?? null),
     authToken: overrides.authToken ?? process.env.ORRERY_TOKEN ?? null,
     staleAfterMs: overrides.staleAfterMs ?? (process.env.ORRERY_STALE_MS && Number.isInteger(envStale) && envStale >= 0 ? envStale : 1_800_000),
   }

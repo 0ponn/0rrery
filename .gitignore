@@ -6,3 +6,4 @@ packages/dashboard/dist/
 .0rrery/
 dead-letter.jsonl
 .superpowers/
+dist-pkg/
