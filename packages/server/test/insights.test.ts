@@ -76,7 +76,7 @@ test('projectRollups aggregates per project', () => {
 
 test('insight queries are reachable via the package entry', async () => {
   const pkg = await import('@0rrery/server')
-  for (const fn of ['spendSeries', 'toolHealth', 'projectRollups', 'searchSessions', 'estCost'] as const) {
+  for (const fn of ['spendSeries', 'toolHealth', 'projectRollups', 'searchSessions', 'estCost', 'sprawlMap', 'externalSurface', 'fsFootprint'] as const) {
     expect(typeof (pkg as any)[fn]).toBe('function')
   }
 })
@@ -136,4 +136,28 @@ test('fsFootprint aggregates files and parent dirs with read/write split', () =>
   const f = fsFootprint(sprawlSeeded().db, {})
   expect(f.files.find(x => x.path === '/repo/src/app.ts')).toMatchObject({ touches: 2, reads: 1, writes: 1 })
   expect(f.dirs.find(x => x.path === '/repo/src')).toMatchObject({ touches: 3, reads: 2, writes: 1 })
+})
+
+test('externalSurface strips userinfo and ports, never leaks credentials', () => {
+  const store = new Store(':memory:')
+  store.applyOps([
+    { op: 'session.start', sessionId: 'sc', source: 'claude-code', project: 'sec', ts: D1 },
+    { op: 'span.start', id: 'tool:c1', sessionId: 'sc', parentId: null, kind: 'tool', name: 'Bash', ts: D1, attrs: { input: { command: 'git clone https://ghp_secrettoken@github.com/org/repo.git && curl https://user:pass@api.example.com:8443/v1' } } },
+  ])
+  const s = externalSurface(store.db, {})
+  const hosts = s.domains.map(d => d.host)
+  expect(hosts).toContain('github.com')
+  expect(hosts).toContain('api.example.com')
+  expect(JSON.stringify(s)).not.toContain('secrettoken')
+  expect(JSON.stringify(s)).not.toContain('pass')
+})
+
+test('sprawlMap survives self-referential parent ids', () => {
+  const store = new Store(':memory:')
+  store.applyOps([
+    { op: 'session.start', sessionId: 'sx', source: 'api', ts: D1 },
+    { op: 'span.start', id: 'tool:loop', sessionId: 'sx', parentId: 'tool:loop', kind: 'tool', name: 'Weird', ts: D1, attrs: {} },
+  ])
+  const { nodes } = sprawlMap(store.db, {})
+  expect(nodes.find(n => n.id === 'tool:Weird')!.count).toBe(1)
 })

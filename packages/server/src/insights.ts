@@ -110,12 +110,14 @@ export function sprawlMap(db: Database, f: InsightFilter): { nodes: TopoNode[]; 
     FROM spans sp JOIN sessions se ON se.id = sp.session_id WHERE ${where}`).all(...params) as any[]
   const byId = new Map(rows.map(r => [r.id, r]))
   const nodeId = (r: any) => `${r.kind}:${r.name}`
-  const parentNode = (r: any): string => {
+  const parentNode = (r: any, seen = new Set<string>()): string => {
+    if (seen.has(r.id)) return 'main'
+    seen.add(r.id)
     const p = r.parent_id ? byId.get(r.parent_id) : null
-    if (!p) return r.kind === 'agent' || r.kind === 'llm' ? 'main' : 'main'
+    if (!p) return 'main'
     if (p.kind === 'agent' || p.kind === 'llm') return nodeId(p)
     // tool parent (Agent tool spawning an agent span): attribute to the tool's own parent chain
-    return parentNode(p)
+    return parentNode(p, seen)
   }
   const nodes = new Map<string, TopoNode>([['main', { id: 'main', kind: 'main', label: 'main', count: 0 }]])
   const edges = new Map<string, TopoEdge>()
@@ -151,7 +153,8 @@ export function externalSurface(db: Database, f: InsightFilter) {
       OR json_extract(sp.attrs, '$.input.command') IS NOT NULL)`).all(...params) as any[]
   const domains = new Map<string, { host: string; calls: number; tools: Set<string> }>()
   const addHost = (raw: string, tool: string) => {
-    const host = raw.split(':')[0].toLowerCase()
+    const at = raw.lastIndexOf('@')
+    const host = (at >= 0 ? raw.slice(at + 1) : raw).split(':')[0].toLowerCase()
     if (!host.includes('.') || host === 'localhost' || host.startsWith('127.')) return
     const d = domains.get(host) ?? { host, calls: 0, tools: new Set<string>() }
     d.calls++; d.tools.add(tool); domains.set(host, d)
