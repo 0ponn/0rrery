@@ -32,6 +32,26 @@ test('pad invariant: spacers plus rendered rows always sum to full height', () =
   }
 })
 
+test('visibleRange stays well-formed when scrollTop outlives a shrunk list', () => {
+  const r = visibleRange(100_000, 600, 24, 5)
+  expect(r.start).toBeLessThanOrEqual(r.end)
+  expect(r.start).toBeLessThanOrEqual(5)
+  expect(r.end).toBeLessThanOrEqual(5)
+  expect(r.padTop + (r.end - r.start) * 24 + r.padBottom).toBe(5 * 24)
+  expect(r.padTop).toBeLessThanOrEqual(5 * 24)
+})
+
+test('visibleRange tolerates hostile inputs without malformed output', () => {
+  for (const [st, vh, total] of [[-100_000, 0, 4000], [0, 0, 0], [1e9, 600, 100]] as const) {
+    const r = visibleRange(st, vh, 24, total)
+    expect(r.start).toBeGreaterThanOrEqual(0)
+    expect(r.start).toBeLessThanOrEqual(r.end)
+    expect(r.end).toBeLessThanOrEqual(total)
+    expect(r.padTop).toBeGreaterThanOrEqual(0)
+    expect(r.padBottom).toBeGreaterThanOrEqual(0)
+  }
+})
+
 test('flattenTree preserves DFS order and depth', () => {
   const mk = (id: string, parent: string | null): SpanRow => ({
     id, session_id: 's', parent_id: parent, kind: 'tool', name: id,
