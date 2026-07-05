@@ -1,6 +1,6 @@
 :root {
   --bg: #0b0e14; --panel: #11151f; --line: #1e2533; --fg: #d8dee9; --dim: #6b7489;
-  --accent: #7aa2f7; --ok: #9ece6a; --err: #f7768e; --run: #e0af68;
+  --accent: #7aa2f7; --ok: #9ece6a; --err: #f7768e; --run: #e0af68; --mcp: #bb9af7;
   font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px;
 }
 * { box-sizing: border-box; margin: 0; }
@@ -31,7 +31,7 @@ select { background: var(--panel); color: var(--fg); border: 1px solid var(--lin
 .wf-row:hover { background: var(--panel); }
 .wf-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kind { font-size: 10px; padding: 0 5px; border-radius: 3px; margin-right: 4px; background: var(--line); color: var(--dim); }
-.kind-llm { color: var(--accent); } .kind-agent { color: var(--ok); } .kind-tool { color: var(--run); }
+.kind-llm { color: var(--accent); } .kind-agent { color: var(--ok); } .kind-tool { color: var(--run); } .kind-mcp { color: var(--mcp); }
 .wf-track { position: relative; height: 14px; background: var(--panel); border-radius: 3px; overflow: hidden; }
 .wf-bar { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; background: var(--accent); min-width: 2px; }
 .wf-bar.st-error { background: var(--err); }
@@ -56,12 +56,12 @@ h1 a { color: var(--dim); text-decoration: none; }
 .topo-wrap { border: 1px solid var(--line); border-radius: 6px; padding: 8px 0 0; }
 .topo-legend { display: flex; gap: 16px; padding: 4px 14px 8px; color: var(--dim); font-size: 12px; align-items: center; }
 .topo-chip { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
-.chip-agent { background: var(--ok); } .chip-llm { background: var(--accent); } .chip-tool { background: var(--run); }
+.chip-agent { background: var(--ok); } .chip-llm { background: var(--accent); } .chip-tool { background: var(--run); } .chip-mcp { background: var(--mcp); }
 .topo-tip { color: var(--fg); margin-left: auto; }
 .topo-scroll { overflow-x: auto; }
 .topo-node { fill: var(--panel); stroke: var(--line); }
 .topo-accent.accent-agent { fill: var(--ok); } .topo-accent.accent-llm { fill: var(--accent); }
-.topo-accent.accent-tool { fill: var(--run); } .topo-accent.accent-main { fill: var(--dim); }
+.topo-accent.accent-tool { fill: var(--run); } .topo-accent.accent-mcp { fill: var(--mcp); } .topo-accent.accent-main { fill: var(--dim); }
 .topo-label { fill: var(--fg); font-size: 12px; }
 .topo-count { fill: var(--dim); }
 .topo-edge { stroke: var(--dim); opacity: 0.45; }

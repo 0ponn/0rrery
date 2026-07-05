@@ -60,6 +60,7 @@ export function TopologyTab({ spans }: { spans: SpanRow[] }) {
         <span><i className="topo-chip chip-agent" /> agents</span>
         <span><i className="topo-chip chip-llm" /> models</span>
         <span><i className="topo-chip chip-tool" /> tools</span>
+        <span><i className="topo-chip chip-mcp" /> mcp</span>
         {hovered && <span className="topo-tip">{byId.get(hovered.from)?.label} → {byId.get(hovered.to)?.label}: {edgeTip(hovered)}</span>}
       </div>
       <div className="topo-scroll">

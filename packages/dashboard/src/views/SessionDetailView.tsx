@@ -3,6 +3,7 @@ import { fetchSession, liveSocket } from '../api'
 import { buildSpanTree, tokenRollup, type SpanNode } from '../tree'
 import { fmtDuration, fmtTime, fmtTokens } from '../format'
 import { permissionStatus, eventDetail, type PermStatus } from '../perms'
+import { displayKind } from '@0rrery/schema/src/names'
 import { TopologyTab } from './TopologyTab'
 import type { SessionDetail, EventRow } from '../types'
 
@@ -20,7 +21,7 @@ function WaterfallRow({ node, t0, total, perms }: { node: SpanNode; t0: number; 
     <>
       <div className="wf-row" onClick={() => setOpen(!open)}>
         <span className="wf-name" style={{ paddingLeft: node.depth * 16 }}>
-          <span className={`kind kind-${s.kind}`}>{s.kind}</span> {s.name}
+          <span className={`kind kind-${displayKind(s.kind, s.name)}`}>{displayKind(s.kind, s.name)}</span> {s.name}
           {perms.has(s.id) && <span className={`perm-badge ${perms.get(s.id)}`}>{perms.get(s.id)}</span>}
         </span>
         <span className="wf-track">

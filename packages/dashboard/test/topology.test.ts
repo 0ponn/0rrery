@@ -87,3 +87,25 @@ test('empty spans → just main with no edges', () => {
   expect(nodes).toEqual([{ id: 'main', kind: 'main', label: 'main', count: 1 }])
   expect(edges).toEqual([])
 })
+
+test('mcp tools aggregate by server in the tools column', () => {
+  const spans = [
+    span('llm:mm', null, 'llm', 'fable'),
+    span('tool:m1', 'llm:mm', 'mcp', 'mcp__claude_ai_Linear__save_issue'),
+    span('tool:m2', 'llm:mm', 'mcp', 'mcp__claude_ai_Linear__get_issue'),
+    span('tool:m3', 'llm:mm', 'tool', 'mcp__engram__mem_save'),   // historical kind, mcp name → still classified
+    span('tool:m4', 'llm:mm', 'tool', 'Bash'),
+  ]
+  const { nodes, edges } = buildTopology(spans)
+  const byId = Object.fromEntries(nodes.map(n => [n.id, n]))
+  expect(byId['mcp:claude_ai_Linear']).toMatchObject({ kind: 'mcp', label: 'claude_ai_Linear', count: 2 })
+  expect(byId['mcp:engram']).toMatchObject({ kind: 'mcp', count: 1 })
+  expect(byId['tool:Bash']).toMatchObject({ kind: 'tool' })
+  expect(byId['tool:mcp__claude_ai_Linear__save_issue']).toBeUndefined()
+  const byKey = Object.fromEntries(edges.map(e => [`${e.from}→${e.to}`, e]))
+  expect(byKey['llm:fable→mcp:claude_ai_Linear']).toMatchObject({ calls: 2 })
+  // mcp shares the tools column
+  const laid = layoutTopology(nodes, edges)
+  const laidById = Object.fromEntries(laid.map(n => [n.id, n]))
+  expect(laidById['mcp:claude_ai_Linear'].x).toBe(laidById['tool:Bash'].x)
+})

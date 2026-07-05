@@ -1,6 +1,7 @@
 import type { SpanRow } from './types'
+import { mcpParts } from '@0rrery/schema/src/names'
 
-export type TopoKind = 'main' | 'agent' | 'llm' | 'tool'
+export type TopoKind = 'main' | 'agent' | 'llm' | 'tool' | 'mcp'
 export type TopoNode = { id: string; kind: TopoKind; label: string; count: number }
 export type TopoEdge = { from: string; to: string; calls: number; totalMs: number; tokensIn: number; tokensOut: number }
 export type LaidOutNode = TopoNode & { x: number; y: number }
@@ -58,9 +59,10 @@ export function buildTopology(spans: SpanRow[]): { nodes: TopoNode[]; edges: Top
       const id = `llm:${s.name}`
       node(id, 'llm', s.name)
       edge(ownerOf(s), id, s, true)
-    } else if (s.kind === 'tool') {
-      const id = `tool:${s.name}`
-      node(id, 'tool', s.name)
+    } else if (s.kind === 'tool' || s.kind === 'mcp') {
+      const mcp = mcpParts(s.name)
+      const id = mcp ? `mcp:${mcp.server}` : `tool:${s.name}`
+      node(id, mcp ? 'mcp' : 'tool', mcp ? mcp.server : s.name)
       const parent = s.parent_id ? byId.get(s.parent_id) : undefined
       if (parent?.kind === 'llm') edge(`llm:${parent.name}`, id, s)
       else edge(ownerOf(s), id, s)
@@ -74,7 +76,7 @@ export function buildTopology(spans: SpanRow[]): { nodes: TopoNode[]; edges: Top
   return { nodes: [...nodes.values()], edges: [...edges.values()] }
 }
 
-const COL: Record<TopoKind, number> = { main: 0, agent: 1, llm: 2, tool: 3 }
+const COL: Record<TopoKind, number> = { main: 0, agent: 1, llm: 2, tool: 3, mcp: 3 }
 
 export function layoutTopology(nodes: TopoNode[], edges: TopoEdge[]): LaidOutNode[] {
   // initial order: first appearance within each column
