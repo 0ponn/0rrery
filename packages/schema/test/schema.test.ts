@@ -30,3 +30,11 @@ test('rejects non-array input as single rejection', () => {
   expect(ok).toEqual([])
   expect(rejected).toHaveLength(1)
 })
+
+test('span.start accepts kind mcp through the wire schema', () => {
+  const { ok, rejected } = parseOps([
+    { op: 'span.start', id: 'tool:tm', sessionId: 's1', parentId: null, kind: 'mcp', name: 'mcp__engram__mem_save', ts: 1, attrs: {} },
+  ])
+  expect(rejected).toEqual([])
+  expect((ok[0] as any).kind).toBe('mcp')
+})
