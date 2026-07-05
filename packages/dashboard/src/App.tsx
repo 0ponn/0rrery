@@ -47,7 +47,7 @@ export function App() {
         <a href="#/live" className={hash === '#/live' ? 'active' : ''}>Live</a>
         <a href="#/insights" className={hash === '#/insights' ? 'active' : ''}>Insights</a>
       </nav>
-      <main><ErrorBoundary>{view}</ErrorBoundary></main>
+      <main><ErrorBoundary key={hash}>{view}</ErrorBoundary></main>
     </div>
   )
 }
