@@ -150,7 +150,7 @@ git add packages/dashboard && git commit -m "Add virtualization math and tree fl
 - Test: none new (browser + rollout verification; Task 1 covers the logic)
 
 **Interfaces:**
-- Consumes: `ROW_H`, `useVirtualRows` from `../virtual`; `flattenTree` from `../tree`; everything SessionDetailView already imports.
+- Consumes: `ROW_H`, `useVirtualRows` from `../virtual` (post-fix contract: the hook ALSO returns `ref` — every virtualized container must set BOTH `ref={v.ref}` and `onScroll={v.onScroll}`, or tall monitors under-render until first scroll); `flattenTree` from `../tree`; everything SessionDetailView already imports.
 - Produces: the shipped trace view.
 
 - [ ] **Step 1: Create `packages/dashboard/src/views/SpanPanel.tsx`**
@@ -269,7 +269,7 @@ function WaterfallRow({ node, t0, total, perms, selected, onSelect }: {
 function EventsList({ events }: { events: EventRow[] }) {
   const v = useVirtualRows(events.length)
   return (
-    <div className="feed vlist" onScroll={v.onScroll}>
+    <div className="feed vlist" ref={v.ref} onScroll={v.onScroll}>
       <div style={{ height: v.padTop }} />
       {events.slice(v.start, v.end).map(e => (
         <div key={e.id} className="feed-row" style={{ height: ROW_H }}>
@@ -356,7 +356,7 @@ export function SessionDetailView({ id }: { id: string }) {
       </div>
       {tab === 'trace' && (
         <div className="trace-split">
-          <div className="waterfall vlist" onScroll={v.onScroll}>
+          <div className="waterfall vlist" ref={v.ref} onScroll={v.onScroll}>
             <div style={{ height: v.padTop }} />
             {flat.slice(v.start, v.end).map(n => (
               <WaterfallRow key={n.span.id} node={n} t0={t0} total={total} perms={perms}
