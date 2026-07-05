@@ -4,6 +4,10 @@ import { estCost } from './prices'
 
 export type InsightFilter = { project?: string; from?: number; to?: number }
 
+export type SpendRow = { day: string; model: string; project: string | null; tokens_in: number; tokens_out: number; calls: number; est_cost: number | null }
+export type ToolHealthRow = { name: string; kind: 'tool' | 'mcp'; calls: number; errors: number; denials: number }
+export type ProjectRollup = { project: string | null; sessions: number; wall_ms: number; tokens_in: number; tokens_out: number; est_cost: number | null; subagents: number }
+
 // WHERE fragment for span queries joined to sessions as `se`, span aliased `sp`.
 function spanWhere(f: InsightFilter, extra: string): { where: string; params: (string | number)[] } {
   const conds = [extra]
@@ -14,7 +18,7 @@ function spanWhere(f: InsightFilter, extra: string): { where: string; params: (s
   return { where: conds.join(' AND '), params }
 }
 
-export function spendSeries(db: Database, f: InsightFilter) {
+export function spendSeries(db: Database, f: InsightFilter): SpendRow[] {
   const { where, params } = spanWhere(f, "sp.kind = 'llm'")
   const rows = db.query(`
     SELECT date(sp.started_at / 1000, 'unixepoch') day, sp.name model, se.project project,
@@ -24,10 +28,10 @@ export function spendSeries(db: Database, f: InsightFilter) {
     FROM spans sp JOIN sessions se ON se.id = sp.session_id
     WHERE ${where}
     GROUP BY day, model, project ORDER BY day, model`).all(...params) as any[]
-  return rows.map(r => ({ ...r, est_cost: estCost(r.model, r.tokens_in, r.tokens_out) }))
+  return rows.map(r => ({ ...r, est_cost: estCost(r.model, r.tokens_in, r.tokens_out) })) as SpendRow[]
 }
 
-export function toolHealth(db: Database, f: InsightFilter) {
+export function toolHealth(db: Database, f: InsightFilter): ToolHealthRow[] {
   const { where, params } = spanWhere(f, "sp.kind IN ('tool', 'mcp')")
   return db.query(`
     SELECT sp.name name, sp.kind kind, COUNT(*) calls,
@@ -36,10 +40,10 @@ export function toolHealth(db: Database, f: InsightFilter) {
         AND ev.type = 'permission.resolved' AND json_extract(ev.attrs, '$.outcome') = 'denied')) denials
     FROM spans sp JOIN sessions se ON se.id = sp.session_id
     WHERE ${where}
-    GROUP BY sp.name, sp.kind ORDER BY calls DESC`).all(...params) as any[]
+    GROUP BY sp.name, sp.kind ORDER BY calls DESC`).all(...params) as ToolHealthRow[]
 }
 
-export function projectRollups(db: Database, f: InsightFilter) {
+export function projectRollups(db: Database, f: InsightFilter): ProjectRollup[] {
   // sessions-side aggregates
   const sConds = ['1 = 1']
   const sParams: (string | number)[] = []
@@ -69,7 +73,7 @@ export function projectRollups(db: Database, f: InsightFilter) {
       est_cost: known.length ? known.reduce((a, c) => a + c, 0) : null,
       subagents: mine.filter(r => r.kind === 'agent').reduce((a, r) => a + r.n, 0),
     }
-  })
+  }) as ProjectRollup[]
 }
 
 export function searchSessions(

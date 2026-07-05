@@ -1,7 +1,10 @@
 import { test, expect } from 'bun:test'
+import { writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Store } from '../src/store'
 import { spendSeries, toolHealth, projectRollups, searchSessions } from '../src/insights'
-import { estCost } from '../src/prices'
+import { estCost, resetPricesCache } from '../src/prices'
 
 // Day 1 = 2026-07-01 (ts 1782864000000), Day 2 = 2026-07-02 (+86400000)
 const D1 = 1782864000000, D2 = D1 + 86_400_000
@@ -33,6 +36,15 @@ test('estCost: prefix match, unknown model null', () => {
   expect(estCost('mystery-model', 1_000_000, 0)).toBeNull()
 })
 
+test('ORRERY_PRICES overrides defaults', () => {
+  const p = join(tmpdir(), `0rrery-prices-${process.pid}.json`)
+  writeFileSync(p, JSON.stringify({ 'mystery-model': { in: 1, out: 2 } }))
+  process.env.ORRERY_PRICES = p
+  resetPricesCache()
+  try { expect(estCost('mystery-model', 1_000_000, 1_000_000)).toBeCloseTo(3) }
+  finally { delete process.env.ORRERY_PRICES; resetPricesCache(); rmSync(p) }
+})
+
 test('spendSeries groups by day and model, null cost for unknown models', () => {
   const rows = spendSeries(seeded().db, {})
   const sonnetD1 = rows.find(r => r.model === 'claude-sonnet-5' && r.day === '2026-07-01')!
@@ -60,6 +72,13 @@ test('projectRollups aggregates per project', () => {
   expect(alpha).toMatchObject({ sessions: 1, tokens_in: 1010, tokens_out: 2020, subagents: 1 })
   expect(alpha.wall_ms).toBeGreaterThan(0)
   expect(alpha.est_cost).toBeCloseTo(1000 / 1e6 * 3 + 2000 / 1e6 * 15)  // unknown-model tokens excluded from $
+})
+
+test('insight queries are reachable via the package entry', async () => {
+  const pkg = await import('@0rrery/server')
+  for (const fn of ['spendSeries', 'toolHealth', 'projectRollups', 'searchSessions', 'estCost'] as const) {
+    expect(typeof (pkg as any)[fn]).toBe('function')
+  }
 })
 
 test('searchSessions matches preview text and filters by project', () => {

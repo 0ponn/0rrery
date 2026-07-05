@@ -12,6 +12,8 @@ const DEFAULTS: Record<string, { in: number; out: number }> = {
 
 let cached: Record<string, { in: number; out: number }> | null = null
 
+export function resetPricesCache() { cached = null }
+
 export function loadPrices(): Record<string, { in: number; out: number }> {
   if (cached) return cached
   let overrides = {}
