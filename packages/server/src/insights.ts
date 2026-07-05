@@ -255,6 +255,11 @@ export function sessionSummary(db: Database, id: string): SessionSummary | null 
 
 const STUCK_PERMISSION_MS = 120_000
 const STUCK_TOOL_MS = 600_000
+// Real data has no "allowed" resolution events, so pending is derived read-time:
+// requested + unresolved + span still open + request younger than the window.
+const PENDING_WINDOW_MS = 1_800_000
+// Nothing marks crashed sessions ended; the ops board shows the last hour only.
+const FLEET_HORIZON_MS = 3_600_000
 
 export type FleetCard = {
   id: string; project: string | null
@@ -267,7 +272,9 @@ export type FleetCard = {
 }
 
 export function fleetView(db: Database, opts: { now: number; staleAfterMs: number }): FleetCard[] {
-  const sessions = db.query(`SELECT * FROM sessions WHERE status = 'active' ORDER BY last_event_at DESC`).all() as any[]
+  const sessions = db.query(`SELECT id, project, started_at, last_event_at FROM sessions
+    WHERE status = 'active' AND last_event_at >= ? ORDER BY last_event_at DESC`)
+    .all(opts.now - FLEET_HORIZON_MS) as any[]
   const cards = sessions.map(s => {
     const open = db.query(`SELECT kind, name, started_at FROM spans
       WHERE session_id = ? AND ended_at IS NULL AND kind IN ('tool', 'mcp', 'agent')
@@ -276,7 +283,9 @@ export function fleetView(db: Database, opts: { now: number; staleAfterMs: numbe
       LEFT JOIN spans sp ON sp.id = e.span_id
       WHERE e.session_id = ? AND e.type = 'permission.requested'
         AND NOT EXISTS (SELECT 1 FROM events r WHERE r.span_id = e.span_id AND r.type = 'permission.resolved')
-      ORDER BY e.ts`).all(s.id) as any[]
+        AND (sp.id IS NULL OR sp.ended_at IS NULL)
+        AND e.ts >= ?
+      ORDER BY e.ts`).all(s.id, opts.now - PENDING_WINDOW_MS) as any[]
     const models = db.query(`SELECT name model,
         SUM(COALESCE(json_extract(attrs, '$.input_tokens'), 0)) tin,
         SUM(COALESCE(json_extract(attrs, '$.output_tokens'), 0)) tout

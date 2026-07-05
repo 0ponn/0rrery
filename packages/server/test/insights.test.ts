@@ -265,3 +265,29 @@ test('fleetView: effective stale past the cutoff', () => {
   expect(fresh.find(c => c.id === 'fB')!.effective).toBe('active')
   expect(fresh.find(c => c.id === 'fA')!.effective).toBe('stale')
 })
+
+test('fleetView: approved-and-completed request is not pending', () => {
+  const s = fleetSeeded([
+    { op: 'session.start', sessionId: 'fF', source: 'claude-code', project: 'zeta', ts: NOW - 45_000 },
+    { op: 'span.start', id: 'tool:ff1', sessionId: 'fF', parentId: null, kind: 'tool', name: 'Edit', ts: NOW - 44_000, attrs: {} },
+    { op: 'event', id: 'evt:perm:req:ff1', sessionId: 'fF', spanId: 'tool:ff1', type: 'permission.requested', ts: NOW - 44_000, attrs: {} },
+    { op: 'span.end', id: 'tool:ff1', ts: NOW - 43_000, status: 'ok' },  // approved: it ran and finished; no resolved event exists
+  ])
+  expect(fleetView(s.db, FOPTS).find(c => c.id === 'fF')!.pending_permissions).toEqual([])
+})
+
+test('fleetView: zombie sessions outside the horizon are excluded', () => {
+  const s = fleetSeeded([
+    { op: 'session.start', sessionId: 'fZ', source: 'claude-code', project: 'zombie', ts: NOW - 10_000_000 },
+  ])
+  expect(fleetView(s.db, FOPTS).find(c => c.id === 'fZ')).toBeUndefined()
+})
+
+test('fleetView: stale pending request outside the window is dropped', () => {
+  const s = fleetSeeded([
+    { op: 'session.start', sessionId: 'fG', source: 'claude-code', project: 'eta', ts: NOW - 3_500_000 },
+    { op: 'event', id: 'evt:perm:req:fg1', sessionId: 'fG', spanId: 'tool:fg1', type: 'permission.requested', ts: NOW - 2_000_000, attrs: {} },
+    { op: 'event', id: 'evt:x', sessionId: 'fG', type: 'message.user', ts: NOW - 1_000, attrs: {} },  // keeps fG inside the horizon
+  ])
+  expect(fleetView(s.db, FOPTS).find(c => c.id === 'fG')!.pending_permissions).toEqual([])
+})
