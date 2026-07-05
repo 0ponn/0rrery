@@ -27,6 +27,10 @@ No span detail panel exists; span rows are not interactive elements. There is no
 
 Span-end rows render as `■ span ok` with no span name or session — you cannot tell what ended. Start rows carry name + session; end rows should too.
 
+## P0 status
+
+Fixed 2026-07-05 at `552d7a2` (`2026-07-05-transcript-tool-end-design.md`). Review surfaced one successor wrinkle, now P3: with spans closing, `permissionStatus` flips pending→allowed for a tool interrupted at the permission prompt (error-status end, no resolution event). Suggested fix: exclude error-status ends from the `ended` set in `perms.ts`.
+
 ## P3 — misc
 
 - Topology renders an `(unknown)` agent node when linkage produced a placeholder that never got a name upgrade.
