@@ -33,3 +33,13 @@ export function tokenRollup(spans: SpanRow[]): { input: number; output: number }
   }
   return { input, output }
 }
+
+export function flattenTree(nodes: SpanNode[]): SpanNode[] {
+  const out: SpanNode[] = []
+  const walk = (n: SpanNode) => {
+    out.push(n)
+    n.children.forEach(walk)
+  }
+  nodes.forEach(walk)
+  return out
+}
