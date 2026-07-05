@@ -6,27 +6,40 @@ import type { ApiSession } from '../types'
 export function SessionsView() {
   const [sessions, setSessions] = useState<ApiSession[]>([])
   const [status, setStatus] = useState('')
+  const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 300)
+    return () => clearTimeout(t)
+  }, [query])
+
+  useEffect(() => {
     let cancelled = false
-    fetchSessions(status ? { status } : {})
+    const params: { status?: string; q?: string } = {}
+    if (status) params.status = status
+    if (debouncedQuery) params.q = debouncedQuery
+    fetchSessions(params)
       .then(s => { if (!cancelled) { setSessions(s); setError('') } })
       .catch(e => { if (!cancelled) setError(String(e)) })
     return () => { cancelled = true }
-  }, [status])
+  }, [status, debouncedQuery])
 
   if (error) return <p className="error">{error}</p>
   return (
     <section>
       <header className="viewhead">
         <h1>Sessions</h1>
-        <select value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="">all</option>
-          <option value="active">active</option>
-          <option value="stale">stale</option>
-          <option value="ended">ended</option>
-        </select>
+        <div className="filters">
+          <input type="search" placeholder="search sessions…" value={query} onChange={e => setQuery(e.target.value)} />
+          <select value={status} onChange={e => setStatus(e.target.value)}>
+            <option value="">all</option>
+            <option value="active">active</option>
+            <option value="stale">stale</option>
+            <option value="ended">ended</option>
+          </select>
+        </div>
       </header>
       <table>
         <thead><tr><th>Session</th><th>Project</th><th>Source</th><th>Status</th><th>Started</th><th>Duration</th></tr></thead>

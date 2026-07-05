@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS idx_spans_session ON spans(session_id, started_at);
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, ts);
 CREATE INDEX IF NOT EXISTS idx_sessions_last ON sessions(last_event_at);
+CREATE INDEX IF NOT EXISTS idx_events_span ON events(span_id, type);
 `
 
 export class Store {

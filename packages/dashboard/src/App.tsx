@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { SessionsView } from './views/SessionsView'
 import { SessionDetailView } from './views/SessionDetailView'
 import { LiveView } from './views/LiveView'
+import { InsightsView } from './views/InsightsView'
 
 function useHashRoute(): string {
   const [hash, setHash] = useState(location.hash || '#/')
@@ -20,6 +21,7 @@ export function App() {
   let view = <SessionsView />
   if (sessionMatch) view = <SessionDetailView id={decodeURIComponent(sessionMatch[1])} />
   if (hash === '#/live') view = <LiveView />
+  if (hash === '#/insights') view = <InsightsView />
 
   return (
     <div className="app">
@@ -27,6 +29,7 @@ export function App() {
         <span className="brand">0rrery</span>
         <a href="#/" className={hash === '#/' ? 'active' : ''}>Sessions</a>
         <a href="#/live" className={hash === '#/live' ? 'active' : ''}>Live</a>
+        <a href="#/insights" className={hash === '#/insights' ? 'active' : ''}>Insights</a>
       </nav>
       <main>{view}</main>
     </div>

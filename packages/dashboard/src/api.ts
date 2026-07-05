@@ -2,12 +2,15 @@ import type { SessionDetail, ApiSession } from './types'
 
 const base = ''  // same origin; vite dev proxies /api
 
-export async function fetchSessions(params: { project?: string; status?: string } = {}): Promise<ApiSession[]> {
+export async function fetchSessions(params: { project?: string; status?: string; q?: string } = {}): Promise<ApiSession[]> {
   const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][])
   const res = await fetch(`${base}/api/sessions?${q}`)
   if (!res.ok) throw new Error(`sessions: ${res.status}`)
   return res.json()
 }
+
+export const fetchInsights = (name: string, params: Record<string, string>) =>
+  fetch(`/api/insights/${name}?${new URLSearchParams(params)}`).then(r => r.json())
 
 export async function fetchSession(id: string): Promise<SessionDetail> {
   const res = await fetch(`${base}/api/sessions/${encodeURIComponent(id)}`)

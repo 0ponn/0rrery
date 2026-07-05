@@ -66,3 +66,17 @@ h1 a { color: var(--dim); text-decoration: none; }
 .topo-count { fill: var(--dim); }
 .topo-edge { stroke: var(--dim); opacity: 0.45; }
 .topo-edge.hot { stroke: var(--fg); opacity: 0.9; }
+.filters { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
+.filters input { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px; }
+.panel { border: 1px solid var(--line); border-radius: 6px; padding: 14px; margin-bottom: 16px; background: var(--panel); }
+.panel-title { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); margin-bottom: 10px; }
+.wide-table { overflow-x: auto; }
+.badge.tool { background: color-mix(in srgb, var(--run) 20%, transparent); color: var(--run); }
+.badge.mcp { background: color-mix(in srgb, var(--mcp) 20%, transparent); color: var(--mcp); }
+.spend-svg { background: var(--bg); border-radius: 4px; }
+.grid-line { stroke: var(--line); stroke-width: 1; }
+.axis-label { fill: var(--dim); font-size: 10px; }
+.legend-row { margin-top: 10px; }
+.legend-chip { display: inline-flex; align-items: center; gap: 5px; }
+.spend-costs { margin-top: 10px; color: var(--dim); display: flex; flex-direction: column; gap: 2px; }
+.footnote { margin-top: 8px; color: var(--dim); font-size: 11px; }
