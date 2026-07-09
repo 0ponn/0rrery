@@ -23,6 +23,7 @@
       },
       "dependencies": {
         "@0rrery/claude-code": "workspace:*",
+        "@0rrery/codex": "workspace:*",
         "@0rrery/server": "workspace:*",
       },
     },
@@ -30,6 +31,7 @@
       "name": "@0rrery/codex",
       "version": "0.1.0",
       "dependencies": {
+        "@0rrery/claude-code": "workspace:*",
         "@0rrery/schema": "workspace:*",
       },
     },

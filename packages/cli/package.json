@@ -1,1 +1,1 @@
-{ "name": "@0rrery/cli", "version": "0.1.0", "bin": { "0rrery": "src/index.ts" }, "dependencies": { "@0rrery/server": "workspace:*", "@0rrery/claude-code": "workspace:*" } }
+{ "name": "@0rrery/cli", "version": "0.1.0", "bin": { "0rrery": "src/index.ts" }, "dependencies": { "@0rrery/server": "workspace:*", "@0rrery/claude-code": "workspace:*", "@0rrery/codex": "workspace:*" } }

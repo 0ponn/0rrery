@@ -5,7 +5,7 @@ description: Use when the user asks about past agent sessions, AI spend/cost, to
 
 # 0rrery — query your own trace history
 
-0rrery records every Claude Code session on this machine (tools, subagents, LLM calls, permissions) in a local SQLite DB behind a localhost HTTP API. Use it to answer questions about past sessions, spend, failures, and agent activity.
+0rrery records every Claude Code and Codex CLI session on this machine (tools, subagents, LLM calls, permissions) in a local SQLite DB behind a localhost HTTP API. Use it to answer questions about past sessions, spend, failures, and agent activity.
 
 ## Before anything: is it running?
 

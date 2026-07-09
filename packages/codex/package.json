@@ -2,5 +2,5 @@
   "name": "@0rrery/codex",
   "version": "0.1.0",
   "module": "src/index.ts",
-  "dependencies": { "@0rrery/schema": "workspace:*" }
+  "dependencies": { "@0rrery/schema": "workspace:*", "@0rrery/claude-code": "workspace:*" }
 }

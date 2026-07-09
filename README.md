@@ -1,6 +1,6 @@
 # 0rrery
 
-Trace-first, local-first observability for AI agent workflows. Watch what your Claude Code sessions actually did (every tool call, subagent, LLM call, and permission decision) as live traces in a local dashboard. One process, one SQLite file, no cloud.
+Trace-first, local-first observability for AI agent workflows. Watch what your Claude Code sessions actually did (every tool call, subagent, LLM call, and permission decision) as live traces in a local dashboard. One process, one SQLite file, no cloud. Ingests Claude Code and OpenAI Codex CLI sessions.
 
 ## Quickstart
 

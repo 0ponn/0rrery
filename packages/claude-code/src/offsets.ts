@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { newTranscriptState, type TranscriptState } from './transcript'
 
-export type FileState = { offset: number; state: TranscriptState }
+export type FileState = { offset: number; state: any }
 
 const VERSION = 1
 
@@ -19,7 +19,7 @@ export function reviveState(json: unknown): TranscriptState {
   }
 }
 
-export function loadOffsets(path: string): Map<string, FileState> {
+export function loadOffsets(path: string, revive: (json: unknown) => any = reviveState): Map<string, FileState> {
   const out = new Map<string, FileState>()
   let raw: string
   try { raw = readFileSync(path, 'utf8') } catch { return out }  // missing file: silent
@@ -29,7 +29,7 @@ export function loadOffsets(path: string): Map<string, FileState> {
     for (const [file, entry] of Object.entries(snap.files as Record<string, any>)) {
       if (!existsSync(file)) continue  // prune dead files
       const offset = Number.isInteger(entry?.offset) && entry.offset >= 0 ? entry.offset : 0
-      out.set(file, { offset, state: reviveState(entry?.state) })
+      out.set(file, { offset, state: revive(entry?.state) })
     }
   } catch (e) {
     console.error('0rrery: tailer offsets snapshot corrupt, starting fresh', e)
@@ -42,7 +42,9 @@ export function saveOffsets(path: string, files: Map<string, FileState>): void {
   try {
     const filesJson: Record<string, unknown> = {}
     for (const [file, { offset, state }] of files) {
-      filesJson[file] = { offset, state: { ...state, agentToolUseIds: [...state.agentToolUseIds] } }
+      const serialized: any = { ...state }
+      for (const k of Object.keys(serialized)) if (serialized[k] instanceof Set) serialized[k] = [...serialized[k]]
+      filesJson[file] = { offset, state: serialized }
     }
     writeFileSync(path + '.tmp', JSON.stringify({ version: VERSION, files: filesJson }))
     renameSync(path + '.tmp', path)

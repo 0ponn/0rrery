@@ -121,3 +121,25 @@ test('fleet endpoint reports a live session with pending permission', async () =
   expect(card.stuck).toBe(false)
   srv.stop()
 })
+
+test('codex fixture imports as a codex-source session', async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), '0rrery-e2e-cx-'))
+  const srv = startServer(loadConfig({ port: 0, dbPath: ':memory:', dashboardDist: null, dataDir }))
+  const fixture = new URL('../packages/codex/fixtures/codex1.jsonl', import.meta.url).pathname
+  const { importSession } = await import('@0rrery/claude-code')
+  const { parseCodexLine, newCodexState } = await import('@0rrery/codex')
+  const r = await importSession(fixture, srv.url, { finalize: true, parse: parseCodexLine, newState: newCodexState })
+  expect(r.emitted).toBe(true)
+
+  const s = await fetch(`${srv.url}/api/sessions/cx1/summary`).then(x => x.json()) as any
+  expect(s.project).toBe('proj-x')
+  expect(s.tokens_in).toBe(3000)
+  expect(s.tokens_out).toBe(150)
+  expect(s.models).toEqual([{ model: 'gpt-5.4', calls: 2 }])
+  expect(s.top_tools.find((t: any) => t.name === 'exec_command')).toMatchObject({ calls: 2, errors: 1 })
+  expect(s.errors).toBe(1)
+
+  const list = await fetch(`${srv.url}/api/sessions`).then(x => x.json()) as any[]
+  expect(list.find(x => x.id === 'cx1')!.source).toBe('codex')
+  srv.stop()
+})

@@ -7,7 +7,8 @@ import { emitOps } from './emit'
 export type ImportResult = { ops: number; emitted: boolean; bytesRead: number }
 
 export async function importTranscript(
-  path: string, url: string, fromByte = 0, state: TranscriptState = newTranscriptState(), finalize = false,
+  path: string, url: string, fromByte = 0, state: any = newTranscriptState(), finalize = false,
+  parse: (raw: string, state: any) => IngestOp[] = parseTranscriptLine,
 ): Promise<ImportResult> {
   const fd = openSync(path, 'r')
   let text!: string
@@ -28,16 +29,17 @@ export async function importTranscript(
   const consumedBytes = Buffer.byteLength(text.slice(0, lastNewline + 1))
 
   // parsing mutates state; snapshot ALL fields so a failed emit retries cleanly
-  // agentToolUseIds is a Set (reference type) — clone it so the restore is an exact copy,
-  // not an alias to the (possibly further-mutated) live state
-  const snapshot = { ...state, agentToolUseIds: new Set(state.agentToolUseIds) }
-  const ops = complete.split('\n').filter(Boolean).flatMap(l => parseTranscriptLine(l, state))
+  // Set-valued fields (e.g. agentToolUseIds) are reference types — clone them so the
+  // restore is an exact copy, not an alias to the (possibly further-mutated) live state
+  const snapshot: any = { ...state }
+  for (const k of Object.keys(snapshot)) if (snapshot[k] instanceof Set) snapshot[k] = new Set(snapshot[k])
+  const ops = complete.split('\n').filter(Boolean).flatMap(l => parse(l, state))
   if (ops.length > 0) {
     const maxTs = ops.reduce((max, o) => (o.ts > max ? o.ts : max), 0)
-    if (state.agentId) {
+    if ('agentId' in state && state.agentId && ops.length) {
       ops.push({ op: 'span.end', id: `agent:${state.agentId}`, ts: maxTs, status: 'ok' } satisfies IngestOp)
     }
-    if (finalize && !state.agentId) {
+    if (finalize && !('agentId' in state && state.agentId)) {
       const sessionId = (ops.find(o => 'sessionId' in o) as { sessionId: string } | undefined)?.sessionId
       if (sessionId) ops.push({ op: 'session.end', sessionId, ts: maxTs } satisfies IngestOp)
     }
@@ -50,17 +52,23 @@ export async function importTranscript(
   return { ops: ops.length, emitted, bytesRead: fromByte + consumedBytes }
 }
 
-export async function importSession(path: string, url: string, opts: { finalize?: boolean } = {}) {
+export async function importSession(
+  path: string, url: string,
+  opts: { finalize?: boolean; parse?: (raw: string, state: any) => IngestOp[]; newState?: () => any } = {},
+) {
+  const newState = opts.newState ?? newTranscriptState
   let files = 0, ops = 0, emitted = true
-  const main = await importTranscript(path, url, 0, newTranscriptState(), opts.finalize ?? false)
+  const main = await importTranscript(path, url, 0, newState(), opts.finalize ?? false, opts.parse ?? parseTranscriptLine)
   files++; ops += main.ops; emitted = emitted && main.emitted
   if (!main.emitted) return { files, ops, emitted: false }
-  const subDir = join(dirname(path), basename(path, '.jsonl'), 'subagents')
-  let subs: string[] = []
-  try { subs = readdirSync(subDir).filter(f => f.endsWith('.jsonl')) } catch {}
-  for (const f of subs) {
-    const r = await importTranscript(join(subDir, f), url, 0, newTranscriptState())
-    files++; ops += r.ops; emitted = emitted && r.emitted
+  if (!opts.parse) {
+    const subDir = join(dirname(path), basename(path, '.jsonl'), 'subagents')
+    let subs: string[] = []
+    try { subs = readdirSync(subDir).filter(f => f.endsWith('.jsonl')) } catch {}
+    for (const f of subs) {
+      const r = await importTranscript(join(subDir, f), url, 0, newTranscriptState())
+      files++; ops += r.ops; emitted = emitted && r.emitted
+    }
   }
   return { files, ops, emitted }
 }
