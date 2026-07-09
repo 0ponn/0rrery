@@ -78,3 +78,5 @@ bun run build:pkg    # stage the npm package in dist-pkg/
 ```
 
 Specs live in `docs/superpowers/specs/`.
+
+Want 0rrery to ingest another agent CLI? See [ADAPTERS.md](./ADAPTERS.md).
