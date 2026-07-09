@@ -15,17 +15,22 @@ export const myParser: Parser<MyState>                  // { parse, finalize? } 
 
 - `parse(raw, state)`: ONE log line/record in, `IngestOp[]` out. Garbage in → `[]`, never throw. The state carries session identity between lines.
 - `finalize(state, maxTs)`: emitted at import-finalize — close anything your format leaves open when a session ends abnormally (e.g. codex closes its open turn span). Live tailing does NOT finalize; open spans render "running", which is truthful.
+- On `finalize`, the importer also emits `session.end` for you automatically — don't emit your own.
 
-`Parser<S>` lives in `packages/claude-code/src/importer.ts`, alongside the default: `claudeParser: Parser<TranscriptState> = { parse: parseTranscriptLine }` (no `finalize` — Claude transcripts don't leave anything open to close). Passing your own parser explicitly to `importSession` (via `opts.parser`) skips subagent-dir discovery — that gate is `opts.parser === undefined`, so it only fires for Claude transcripts, which is why the codex sweep path passes `parser: codexParser` explicitly and never triggers it.
+`Parser<S>` lives in `packages/claude-code/src/importer.ts`, alongside the default: `claudeParser: Parser<TranscriptState> = { parse: parseTranscriptLine }` (no `finalize` — Claude transcripts DO leave agent spans open when a subagent turn ends; the importer's `agentId` special case closes them with its own `span.end`, not a per-parser `finalize`). Passing your own parser explicitly to `importSession` (via `opts.parser`) skips subagent-dir discovery — that gate is `opts.parser === undefined`, so it only fires for Claude transcripts, which is why the codex sweep path passes `parser: codexParser` explicitly and never triggers it.
+
+The op vocabulary (`IngestOp`: session.start/end, span.start/end, event) is defined in `packages/schema/src/index.ts` — read it before writing a parser.
 
 ## The rules (each one earned by a real bug)
 
-1. **State must be flat: scalars and Sets only.** The importer's emit-failure rollback clones by shallow spread + Set copy; a nested object or Map would alias and corrupt on rollback.
+1. **State must be flat: scalars and Sets only.** The importer's emit-failure rollback clones by shallow spread + Set copy; a nested object or Map would alias and corrupt on rollback. Reserved field name: never call a state field `agentId` — the importer special-cases any truthy `agentId` (emits an agent-span close per read and suppresses the automatic session.end). It belongs to the Claude adapter.
 2. **Ids must be deterministic and globally unique.** Idempotent re-ingest is the contract — the store dedupes by id (`INSERT OR IGNORE`). Derive ids from source-file identifiers (call ids, turn ids, thread ids), NEVER from parse time or counters. If multiple files merge into one session, salt event ids with the file's own thread id (codex: `evt:msg:<sid>:<threadId>:<ts>:<role>` when thread ≠ session).
 3. **Sum per-call deltas, not cumulative counters.** Check your source's semantics against real files first (codex `last_token_usage` is a delta; `total_token_usage` is cumulative — summing the wrong one double-counts).
 4. **Status from evidence, ok as default.** e.g. codex greps `exited with code [1-9]`; Claude uses `is_error`. Never guess errors.
 5. **Per-adapter offset files.** `loadOffsets(path, reviveMyState)` applies ONE reviver to every entry — never share a snapshot file between adapters.
 6. **No schema changes without review.** The wire (`IngestOp`) is tool-agnostic; if you think you need a new kind or field, you probably want attrs. (Adding your tool's name to the sessions `source` enum is the one expected change.)
+
+**What you don't need:** adapters do NOT need hooks — transcript/log tailing alone is fully supported (hooks are a Claude-adapter extra for latency, not a requirement of the contract).
 
 ## Wiring points
 
@@ -33,6 +38,7 @@ export const myParser: Parser<MyState>                  // { parse, finalize? } 
 - **Import sniffing**: `packages/cli/src/index.ts` `import` case reads the file head to pick a parser — add your format's signature.
 - **Sweep**: `packages/cli/src/sweep.ts` `importAll` — add your root dir, reuse `importOne`.
 - **Serve**: `packages/cli/src/index.ts` `serve` case — start your tailer behind an `existsSync` guard with its own `<tool>-offsets.json`.
+- **`newState` is required, not optional, at non-default call sites**: both `importSession` call sites for non-Claude adapters pass `newState` explicitly (`cli/src/index.ts:89`, `sweep.ts:48`) alongside `parser` — omitting it leaves `importSession` defaulting to `newTranscriptState`, which is the wrong shape for your adapter's state.
 
 ## Testing (the pattern that caught real bugs, twice)
 

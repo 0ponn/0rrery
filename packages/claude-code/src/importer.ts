@@ -52,7 +52,7 @@ export async function importTranscript<S = TranscriptState>(
       const sessionId = (ops.find(o => 'sessionId' in o) as { sessionId: string } | undefined)?.sessionId
       if (sessionId) ops.push({ op: 'session.end', sessionId, ts: maxTs } satisfies IngestOp)
     }
-    if (finalize && parser.finalize && ops.length) ops.push(...parser.finalize(state, maxTs))
+    if (finalize && parser.finalize) ops.push(...parser.finalize(state, maxTs))
   }
   const emitted = await emitOps(url, ops, 5000)
   if (!emitted) {
@@ -62,12 +62,12 @@ export async function importTranscript<S = TranscriptState>(
   return { ops: ops.length, emitted, bytesRead: fromByte + consumedBytes }
 }
 
-export async function importSession(
+export async function importSession<S = TranscriptState>(
   path: string, url: string,
-  opts: { finalize?: boolean; parser?: Parser<any>; newState?: () => any } = {},
+  opts: { finalize?: boolean; parser?: Parser<S>; newState?: () => S } = {},
 ) {
-  const newState = opts.newState ?? newTranscriptState
-  const parser = opts.parser ?? claudeParser
+  const newState = opts.newState ?? (newTranscriptState as unknown as () => S)
+  const parser = opts.parser ?? (claudeParser as unknown as Parser<S>)
   let files = 0, ops = 0, emitted = true
   const main = await importTranscript(path, url, 0, newState(), opts.finalize ?? false, parser)
   files++; ops += main.ops; emitted = emitted && main.emitted

@@ -35,7 +35,7 @@ Codex subagent-thread files share `session_id` with their parent; today `evt:msg
 
 - `CodexState` gains `threadId: string | null` = `payload.id` from session_meta (distinct from session_id on subagent threads, equal on main files).
 - Event ids become `evt:msg:<sid>:<ts>:<role>` UNCHANGED when `threadId === sessionId` (main files — the overwhelming majority; re-imports stay idempotent against existing DB rows), and `evt:msg:<sid>:<threadId>:<ts>:<role>` when they differ (subagent threads). Same rule for `evt:stop`.
-- Accepted consequence: already-ingested subagent-thread events (the merged FOSSINT session's handful) duplicate once on the next re-import of those two files. Bounded, display-only, accepted.
+- Accepted consequence: subagent-thread events already ingested under unsalted ids are orphaned by this change (no code path emits those ids again); the next re-import inserts salted copies alongside them, so each pre-fix subagent event appears twice in the merged timeline. Observed on the FOSSINT session: 26 events (12 + 14 across the two thread files), 40→66, each salted row pairing an existing unsalted row at identical (ts, type, attrs). Bounded (once per pre-fix subagent event, stable under further re-imports — verified: a second import adds 0), display-only, accepted. Optional one-time cleanup: delete unsalted `evt:msg:`/`evt:stop:` rows that have a salted twin at the same (session_id, ts, type, attrs). No drop occurred in this instance; the same-millisecond collision drop the salt guards against remains theoretical on this host.
 
 ### 4. Small correctness leftovers
 

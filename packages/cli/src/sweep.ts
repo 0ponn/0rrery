@@ -2,8 +2,8 @@ import { existsSync } from 'node:fs'
 import { importSession } from '@0rrery/claude-code'
 import { codexParser, newCodexState } from '@0rrery/codex'
 
-async function importOne(
-  path: string, url: string, opts: Parameters<typeof importSession>[2], label: string,
+async function importOne<S>(
+  path: string, url: string, opts: Parameters<typeof importSession<S>>[2], label: string,
 ): Promise<'ok' | 'failed' | 'unreachable'> {
   try {
     const r = await importSession(path, url, opts)
