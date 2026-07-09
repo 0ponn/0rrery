@@ -127,8 +127,8 @@ test('codex fixture imports as a codex-source session', async () => {
   const srv = startServer(loadConfig({ port: 0, dbPath: ':memory:', dashboardDist: null, dataDir }))
   const fixture = new URL('../packages/codex/fixtures/codex1.jsonl', import.meta.url).pathname
   const { importSession } = await import('@0rrery/claude-code')
-  const { parseCodexLine, newCodexState } = await import('@0rrery/codex')
-  const r = await importSession(fixture, srv.url, { finalize: true, parse: parseCodexLine, newState: newCodexState })
+  const { codexParser, newCodexState } = await import('@0rrery/codex')
+  const r = await importSession(fixture, srv.url, { finalize: true, parser: codexParser, newState: newCodexState })
   expect(r.emitted).toBe(true)
 
   const s = await fetch(`${srv.url}/api/sessions/cx1/summary`).then(x => x.json()) as any
@@ -141,5 +141,20 @@ test('codex fixture imports as a codex-source session', async () => {
 
   const list = await fetch(`${srv.url}/api/sessions`).then(x => x.json()) as any[]
   expect(list.find(x => x.id === 'cx1')!.source).toBe('codex')
+  srv.stop()
+})
+
+test('re-importing the codex fixture is event-idempotent', async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), '0rrery-e2e-cxi-'))
+  const srv = startServer(loadConfig({ port: 0, dbPath: ':memory:', dashboardDist: null, dataDir }))
+  const fixture = new URL('../packages/codex/fixtures/codex1.jsonl', import.meta.url).pathname
+  const { importSession } = await import('@0rrery/claude-code')
+  const { codexParser, newCodexState } = await import('@0rrery/codex')
+  const opts = { finalize: true, parser: codexParser, newState: newCodexState }
+  await importSession(fixture, srv.url, opts)
+  const before = ((await fetch(`${srv.url}/api/sessions/cx1`).then(r => r.json())) as any).events.length
+  await importSession(fixture, srv.url, opts)
+  const after = ((await fetch(`${srv.url}/api/sessions/cx1`).then(r => r.json())) as any).events.length
+  expect(after).toBe(before)
   srv.stop()
 })

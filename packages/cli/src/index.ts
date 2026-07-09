@@ -4,7 +4,7 @@ import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { startServer, loadConfig } from '@0rrery/server'
 import { startTailer, importSession, mapHookEvent, emitOps, type HookInput } from '@0rrery/claude-code'
-import { startCodexTailer, parseCodexLine, newCodexState } from '@0rrery/codex'
+import { startCodexTailer, codexParser, newCodexState } from '@0rrery/codex'
 import { installHooks } from './install'
 import { importAll } from './sweep'
 import { runService, resolveBin } from './service'
@@ -86,7 +86,7 @@ switch (cmd) {
       const path = resolve(arg)
       const isCodex = /"type"\s*:\s*"session_meta"/.test(sniffHead(path))
       r = isCodex
-        ? await importSession(path, url, { finalize: true, parse: parseCodexLine, newState: newCodexState })
+        ? await importSession(path, url, { finalize: true, parser: codexParser, newState: newCodexState })
         : await importSession(path, url, { finalize: true })
     } catch (err) {
       console.error(`0rrery import: cannot read ${arg}: ${err instanceof Error ? err.message : String(err)}`)

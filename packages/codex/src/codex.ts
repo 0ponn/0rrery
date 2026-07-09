@@ -1,13 +1,14 @@
 import type { IngestOp } from '@0rrery/schema'
 import { isMcpTool } from '@0rrery/schema'
+import type { Parser } from '@0rrery/claude-code'
 
 export type CodexState = {
   sessionId: string | null; project: string | null; model: string | null
-  openTurnId: string | null; turnIn: number; turnOut: number
+  openTurnId: string | null; turnIn: number; turnOut: number; threadId: string | null
 }
 
 export function newCodexState(): CodexState {
-  return { sessionId: null, project: null, model: null, openTurnId: null, turnIn: 0, turnOut: 0 }
+  return { sessionId: null, project: null, model: null, openTurnId: null, turnIn: 0, turnOut: 0, threadId: null }
 }
 
 export function reviveCodexState(json: unknown): CodexState {
@@ -21,7 +22,16 @@ export function reviveCodexState(json: unknown): CodexState {
   return {
     sessionId: str(j.sessionId), project: str(j.project), model: str(j.model),
     openTurnId: str(j.openTurnId), turnIn: num(j.turnIn), turnOut: num(j.turnOut),
+    threadId: str(j.threadId),
   }
+}
+
+// evt:msg/evt:stop ids are unsalted (byte-identical to the pre-salt scheme) when threadId
+// equals sessionId — the overwhelming majority (main files) — and re-import stays idempotent
+// against existing DB rows. Subagent-thread files share sessionId with their parent but carry
+// a distinct threadId, so their event ids get salted to avoid colliding in the same millisecond.
+function idSalt(state: CodexState): string {
+  return state.threadId !== null && state.threadId !== state.sessionId ? `:${state.threadId}` : ''
 }
 
 const preview = (s: string) => s.slice(0, 200)
@@ -43,11 +53,13 @@ export function parseCodexLine(raw: string, state: CodexState): IngestOp[] {
   if (line.type === 'session_meta') {
     state.sessionId = typeof p.session_id === 'string' ? p.session_id : (typeof p.id === 'string' ? p.id : null)
     if (!state.sessionId) return []
+    state.threadId = typeof p.id === 'string' ? p.id : state.sessionId
     state.project = typeof p.cwd === 'string' ? p.cwd.split('/').pop() ?? null : null
     state.model = typeof p.model_provider === 'string' ? p.model_provider : null
     return [{
       op: 'session.start', sessionId: state.sessionId, source: 'codex', ts,
       project: state.project ?? undefined,
+      cwd: typeof p.cwd === 'string' ? p.cwd : undefined,
       meta: { model_provider: p.model_provider, cli_version: p.cli_version, originator: p.originator },
     }]
   }
@@ -82,7 +94,7 @@ export function parseCodexLine(raw: string, state: CodexState): IngestOp[] {
   if (line.type === 'event_msg') {
     if (p.type === 'task_complete') {
       closeTurn(ts)
-      ops.push({ op: 'event', id: `evt:stop:${sid}:${ts}`, sessionId: sid, type: 'turn.stop', ts, attrs: {} })
+      ops.push({ op: 'event', id: `evt:stop:${sid}${idSalt(state)}:${ts}`, sessionId: sid, type: 'turn.stop', ts, attrs: {} })
       return ops
     }
     if (p.type === 'token_count' && p.info && typeof p.info === 'object' && state.openTurnId) {
@@ -131,7 +143,7 @@ export function parseCodexLine(raw: string, state: CodexState): IngestOp[] {
       const text = messageText(p.content)
       if (!text) return []
       return [{
-        op: 'event', id: `evt:msg:${sid}:${ts}:${p.role}`, sessionId: sid,
+        op: 'event', id: `evt:msg:${sid}${idSalt(state)}:${ts}:${p.role}`, sessionId: sid,
         type: p.role === 'user' ? 'message.user' : 'message.assistant', ts,
         attrs: { preview: preview(text) },
       }]
@@ -140,4 +152,11 @@ export function parseCodexLine(raw: string, state: CodexState): IngestOp[] {
   }
 
   return []  // unknown top-level types
+}
+
+export const codexParser: Parser<CodexState> = {
+  parse: parseCodexLine,
+  finalize: (state, maxTs) => state.openTurnId
+    ? [{ op: 'span.end', id: `llm:${state.openTurnId}`, ts: maxTs, status: 'ok' }]
+    : [],
 }

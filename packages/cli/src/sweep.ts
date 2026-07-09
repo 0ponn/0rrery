@@ -1,6 +1,23 @@
 import { existsSync } from 'node:fs'
 import { importSession } from '@0rrery/claude-code'
-import { parseCodexLine, newCodexState } from '@0rrery/codex'
+import { codexParser, newCodexState } from '@0rrery/codex'
+
+async function importOne(
+  path: string, url: string, opts: Parameters<typeof importSession>[2], label: string,
+): Promise<'ok' | 'failed' | 'unreachable'> {
+  try {
+    const r = await importSession(path, url, opts)
+    if (r.emitted) {
+      console.log(`  ${label}: ${r.ops} ops`)
+      return 'ok'
+    }
+    console.error(`  ${label}: server unreachable at ${url} — aborting sweep`)
+    return 'unreachable'
+  } catch (err) {
+    console.error(`  ${label}: ${err instanceof Error ? err.message : String(err)}`)
+    return 'failed'
+  }
+}
 
 export async function importAll(
   projectsDir: string, url: string, codexRoot?: string,
@@ -14,20 +31,12 @@ export async function importAll(
 
   for (const f of claudeFiles) {
     const name = f.split('/').slice(-2).join('/')
-    try {
-      const r = await importSession(f, url, { finalize: true })
-      if (r.emitted) {
-        ok++
-        console.log(`  ${name}: ${r.ops} ops`)
-      } else {
-        failed++
-        console.error(`  ${name}: server unreachable at ${url} — aborting sweep`)
-        aborted = true
-        break
-      }
-    } catch (err) {
+    const result = await importOne(f, url, { finalize: true }, name)
+    if (result === 'ok') {
+      ok++
+    } else {
       failed++
-      console.error(`  ${name}: ${err instanceof Error ? err.message : String(err)}`)
+      if (result === 'unreachable') { aborted = true; break }
     }
   }
 
@@ -36,19 +45,12 @@ export async function importAll(
     : []
   for (const f of codexFiles) {
     const name = f.split('/').slice(-2).join('/')
-    try {
-      const r = await importSession(f, url, { finalize: true, parse: parseCodexLine, newState: newCodexState })
-      if (r.emitted) {
-        ok++
-        console.log(`  ${name}: ${r.ops} ops`)
-      } else {
-        failed++
-        console.error(`  ${name}: server unreachable at ${url} — aborting sweep`)
-        break
-      }
-    } catch (err) {
+    const result = await importOne(f, url, { finalize: true, parser: codexParser, newState: newCodexState }, name)
+    if (result === 'ok') {
+      ok++
+    } else {
       failed++
-      console.error(`  ${name}: ${err instanceof Error ? err.message : String(err)}`)
+      if (result === 'unreachable') break
     }
   }
 

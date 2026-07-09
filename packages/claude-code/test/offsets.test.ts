@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { loadOffsets, saveOffsets, reviveState, type FileState } from '../src/offsets'
-import { newTranscriptState } from '../src/transcript'
+import { newTranscriptState, type TranscriptState } from '../src/transcript'
 
 function tmpPath() { return join(mkdtempSync(join(tmpdir(), '0rrery-off-')), 'tailer-offsets.json') }
 
@@ -16,9 +16,9 @@ test('round-trips offsets and full state including the Set', () => {
   state.agentId = 'a1b2c3d4e5'
   state.agentFirstTs = 42
   state.agentToolUseIds.add('tu1').add('tu2')
-  const files = new Map<string, FileState>([[trackedFile, { offset: 123, state }]])
+  const files = new Map<string, FileState<TranscriptState>>([[trackedFile, { offset: 123, state }]])
   saveOffsets(p, files)
-  const loaded = loadOffsets(p)
+  const loaded = loadOffsets(p, reviveState)
   const entry = loaded.get(trackedFile)!
   expect(entry.offset).toBe(123)
   expect(entry.state.sessionStarted).toBe(true)
@@ -30,24 +30,24 @@ test('round-trips offsets and full state including the Set', () => {
 })
 
 test('missing file → empty map, no throw, no log', () => {
-  expect(loadOffsets(join(tmpdir(), '0rrery-off-nope', 'none.json')).size).toBe(0)
+  expect(loadOffsets(join(tmpdir(), '0rrery-off-nope', 'none.json'), reviveState).size).toBe(0)
 })
 
 test('corrupt JSON and wrong version → empty map, no throw', () => {
   const p1 = tmpPath()
   writeFileSync(p1, '{ not json')
-  expect(loadOffsets(p1).size).toBe(0)
+  expect(loadOffsets(p1, reviveState).size).toBe(0)
   const p2 = tmpPath()
   writeFileSync(p2, JSON.stringify({ version: 99, files: {} }))
-  expect(loadOffsets(p2).size).toBe(0)
+  expect(loadOffsets(p2, reviveState).size).toBe(0)
 })
 
 test('entries for files that no longer exist are pruned at load', () => {
   const p = tmpPath()
   const gone = join(tmpdir(), '0rrery-off-gone', 'deleted.jsonl')
-  const files = new Map<string, FileState>([[gone, { offset: 5, state: newTranscriptState() }]])
+  const files = new Map<string, FileState<TranscriptState>>([[gone, { offset: 5, state: newTranscriptState() }]])
   saveOffsets(p, files)
-  expect(loadOffsets(p).size).toBe(0)
+  expect(loadOffsets(p, reviveState).size).toBe(0)
 })
 
 test('reviveState fills fields missing from older snapshots', () => {
@@ -66,10 +66,10 @@ test('non-integer offsets from a tampered snapshot reset to 0', () => {
   const trackedFile = tmpPath()
   writeFileSync(trackedFile, 'x')
   writeFileSync(p, JSON.stringify({ version: 1, files: { [trackedFile]: { offset: 3.5, state: {} } } }))
-  expect(loadOffsets(p).get(trackedFile)!.offset).toBe(0)
+  expect(loadOffsets(p, reviveState).get(trackedFile)!.offset).toBe(0)
 })
 
 test('saveOffsets to an unwritable path does not throw', () => {
-  const files = new Map<string, FileState>()
+  const files = new Map<string, FileState<TranscriptState>>()
   expect(() => saveOffsets('/proc/definitely/not/writable.json', files)).not.toThrow()
 })

@@ -1,11 +1,11 @@
 import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { importTranscript } from './importer'
-import { newTranscriptState } from './transcript'
-import { loadOffsets, saveOffsets, type FileState } from './offsets'
+import { newTranscriptState, type TranscriptState } from './transcript'
+import { loadOffsets, saveOffsets, reviveState, type FileState } from './offsets'
 
 export function startTailer(projectsDir: string, url: string, pollMs = 2000, offsetsPath?: string) {
-  const files: Map<string, FileState> = offsetsPath ? loadOffsets(offsetsPath) : new Map()
+  const files: Map<string, FileState<TranscriptState>> = offsetsPath ? loadOffsets(offsetsPath, reviveState) : new Map()
   let stopped = false
   let dirty = false
 

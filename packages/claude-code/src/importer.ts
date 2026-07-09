@@ -6,9 +6,16 @@ import { emitOps } from './emit'
 
 export type ImportResult = { ops: number; emitted: boolean; bytesRead: number }
 
-export async function importTranscript(
-  path: string, url: string, fromByte = 0, state: any = newTranscriptState(), finalize = false,
-  parse: (raw: string, state: any) => IngestOp[] = parseTranscriptLine,
+export type Parser<S> = {
+  parse: (raw: string, state: S) => IngestOp[]
+  finalize?: (state: S, maxTs: number) => IngestOp[]
+}
+
+export const claudeParser: Parser<TranscriptState> = { parse: parseTranscriptLine }
+
+export async function importTranscript<S = TranscriptState>(
+  path: string, url: string, fromByte = 0, state: S = newTranscriptState() as unknown as S, finalize = false,
+  parser: Parser<S> = claudeParser as unknown as Parser<S>,
 ): Promise<ImportResult> {
   const fd = openSync(path, 'r')
   let text!: string
@@ -31,22 +38,24 @@ export async function importTranscript(
   // parsing mutates state; snapshot ALL fields so a failed emit retries cleanly
   // Set-valued fields (e.g. agentToolUseIds) are reference types — clone them so the
   // restore is an exact copy, not an alias to the (possibly further-mutated) live state
+  // adapter state must be flat: scalars and Sets only — nested objects/Maps would alias through this rollback clone
   const snapshot: any = { ...state }
   for (const k of Object.keys(snapshot)) if (snapshot[k] instanceof Set) snapshot[k] = new Set(snapshot[k])
-  const ops = complete.split('\n').filter(Boolean).flatMap(l => parse(l, state))
+  const ops = complete.split('\n').filter(Boolean).flatMap(l => parser.parse(l, state))
   if (ops.length > 0) {
     const maxTs = ops.reduce((max, o) => (o.ts > max ? o.ts : max), 0)
-    if ('agentId' in state && state.agentId && ops.length) {
-      ops.push({ op: 'span.end', id: `agent:${state.agentId}`, ts: maxTs, status: 'ok' } satisfies IngestOp)
+    if ('agentId' in (state as any) && (state as any).agentId && ops.length) {
+      ops.push({ op: 'span.end', id: `agent:${(state as any).agentId}`, ts: maxTs, status: 'ok' } satisfies IngestOp)
     }
-    if (finalize && !('agentId' in state && state.agentId)) {
+    if (finalize && !('agentId' in (state as any) && (state as any).agentId)) {
       const sessionId = (ops.find(o => 'sessionId' in o) as { sessionId: string } | undefined)?.sessionId
       if (sessionId) ops.push({ op: 'session.end', sessionId, ts: maxTs } satisfies IngestOp)
     }
+    if (finalize && parser.finalize && ops.length) ops.push(...parser.finalize(state, maxTs))
   }
   const emitted = await emitOps(url, ops, 5000)
   if (!emitted) {
-    Object.assign(state, snapshot)
+    Object.assign(state as any, snapshot)
     return { ops: ops.length, emitted: false, bytesRead: fromByte }
   }
   return { ops: ops.length, emitted, bytesRead: fromByte + consumedBytes }
@@ -54,14 +63,15 @@ export async function importTranscript(
 
 export async function importSession(
   path: string, url: string,
-  opts: { finalize?: boolean; parse?: (raw: string, state: any) => IngestOp[]; newState?: () => any } = {},
+  opts: { finalize?: boolean; parser?: Parser<any>; newState?: () => any } = {},
 ) {
   const newState = opts.newState ?? newTranscriptState
+  const parser = opts.parser ?? claudeParser
   let files = 0, ops = 0, emitted = true
-  const main = await importTranscript(path, url, 0, newState(), opts.finalize ?? false, opts.parse ?? parseTranscriptLine)
+  const main = await importTranscript(path, url, 0, newState(), opts.finalize ?? false, parser)
   files++; ops += main.ops; emitted = emitted && main.emitted
   if (!main.emitted) return { files, ops, emitted: false }
-  if (!opts.parse) {
+  if (opts.parser === undefined) {
     const subDir = join(dirname(path), basename(path, '.jsonl'), 'subagents')
     let subs: string[] = []
     try { subs = readdirSync(subDir).filter(f => f.endsWith('.jsonl')) } catch {}

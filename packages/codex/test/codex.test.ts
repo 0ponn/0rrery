@@ -1,6 +1,7 @@
 import { test, expect } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { parseCodexLine, newCodexState, reviveCodexState } from '../src/codex'
+import { codexParser } from '../src/codex'
 import type { IngestOp } from '@0rrery/schema'
 
 function parseFixture(): IngestOp[] {
@@ -91,4 +92,31 @@ test('reviveCodexState round-trips and defaults malformed fields', () => {
   s.sessionId = 'cx1'; s.openTurnId = 't1'; s.turnIn = 5
   expect(reviveCodexState(JSON.parse(JSON.stringify(s)))).toEqual(s)
   expect(reviveCodexState({ sessionId: 42 })).toEqual(newCodexState())
+})
+
+test('codexParser.finalize closes an open turn at maxTs, nothing when none open', () => {
+  const s = newCodexState()
+  s.sessionId = 'cx1'; s.openTurnId = 't9'
+  expect(codexParser.finalize!(s, 12345)).toEqual([{ op: 'span.end', id: 'llm:t9', ts: 12345, status: 'ok' }])
+  expect(codexParser.finalize!(newCodexState(), 12345)).toEqual([])
+})
+
+test('main-file event ids are byte-identical to the pre-salt scheme', () => {
+  const state = newCodexState()
+  parseCodexLine(JSON.stringify({ timestamp: '2026-07-09T10:00:00.000Z', type: 'session_meta', payload: { session_id: 'cxm', id: 'cxm', cwd: '/home/dev/p' } }), state)
+  const ops = parseCodexLine(JSON.stringify({ timestamp: '2026-07-09T10:00:01.000Z', type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] } }), state)
+  expect((ops[0] as any).id).toBe(`evt:msg:cxm:${Date.parse('2026-07-09T10:00:01.000Z')}:user`)
+})
+
+test('subagent-thread event ids are salted with the thread id', () => {
+  const state = newCodexState()
+  parseCodexLine(JSON.stringify({ timestamp: '2026-07-09T10:00:00.000Z', type: 'session_meta', payload: { session_id: 'cxm', id: 'thread-42', cwd: '/home/dev/p' } }), state)
+  const ops = parseCodexLine(JSON.stringify({ timestamp: '2026-07-09T10:00:01.000Z', type: 'response_item', payload: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'yo' }] } }), state)
+  expect((ops[0] as any).id).toBe(`evt:msg:cxm:thread-42:${Date.parse('2026-07-09T10:00:01.000Z')}:assistant`)
+})
+
+test('codex session.start carries cwd', () => {
+  const state = newCodexState()
+  const ops = parseCodexLine(JSON.stringify({ timestamp: '2026-07-09T10:00:00.000Z', type: 'session_meta', payload: { session_id: 'cxc', id: 'cxc', cwd: '/home/dev/somewhere' } }), state)
+  expect((ops[0] as any).cwd).toBe('/home/dev/somewhere')
 })

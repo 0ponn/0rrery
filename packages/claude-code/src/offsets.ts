@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { newTranscriptState, type TranscriptState } from './transcript'
 
-export type FileState = { offset: number; state: any }
+export type FileState<S> = { offset: number; state: S }
 
 const VERSION = 1
 
@@ -19,8 +19,8 @@ export function reviveState(json: unknown): TranscriptState {
   }
 }
 
-export function loadOffsets(path: string, revive: (json: unknown) => any = reviveState): Map<string, FileState> {
-  const out = new Map<string, FileState>()
+export function loadOffsets<S>(path: string, revive: (json: unknown) => S): Map<string, FileState<S>> {
+  const out = new Map<string, FileState<S>>()
   let raw: string
   try { raw = readFileSync(path, 'utf8') } catch { return out }  // missing file: silent
   try {
@@ -38,7 +38,7 @@ export function loadOffsets(path: string, revive: (json: unknown) => any = reviv
   return out
 }
 
-export function saveOffsets(path: string, files: Map<string, FileState>): void {
+export function saveOffsets<S>(path: string, files: Map<string, FileState<S>>): void {
   try {
     const filesJson: Record<string, unknown> = {}
     for (const [file, { offset, state }] of files) {

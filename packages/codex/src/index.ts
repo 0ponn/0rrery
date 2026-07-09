@@ -1,2 +1,2 @@
-export { parseCodexLine, newCodexState, reviveCodexState, type CodexState } from './codex'
+export { parseCodexLine, newCodexState, reviveCodexState, codexParser, type CodexState } from './codex'
 export { startCodexTailer } from './tailer'

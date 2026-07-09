@@ -105,6 +105,6 @@ test('truncation reset is persisted even when re-ingest cannot advance', async (
   const t2 = startTailer(projects, 'http://localhost:1', 100, offsetsPath)
   await Bun.sleep(300)
   t2.stop()
-  const { loadOffsets } = await import('../src/offsets')
-  expect(loadOffsets(offsetsPath).get(file)!.offset).toBe(0)  // reset was flushed despite no ingest
+  const { loadOffsets, reviveState } = await import('../src/offsets')
+  expect(loadOffsets(offsetsPath, reviveState).get(file)!.offset).toBe(0)  // reset was flushed despite no ingest
 })

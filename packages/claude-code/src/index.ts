@@ -1,6 +1,6 @@
 export { mapHookEvent, type HookInput } from './map'
 export { emitOps } from './emit'
 export { parseTranscriptLine, newTranscriptState, type TranscriptState } from './transcript'
-export { importTranscript, importSession, type ImportResult } from './importer'
+export { importTranscript, importSession, claudeParser, type ImportResult, type Parser } from './importer'
 export { startTailer } from './tailer'
 export { loadOffsets, saveOffsets, reviveState, type FileState } from './offsets'
