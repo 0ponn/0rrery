@@ -1,17 +1,17 @@
 # 0rrery
 
-Trace-first, local-first observability for AI agent workflows. Watch what your Claude Code sessions actually did — every tool call, subagent, LLM call, and permission decision — as live traces in a local dashboard. One process, one SQLite file, no cloud.
+Trace-first, local-first observability for AI agent workflows. Watch what your Claude Code sessions actually did (every tool call, subagent, LLM call, and permission decision) as live traces in a local dashboard. One process, one SQLite file, no cloud.
 
 ## Quickstart
 
 ```
-bun install -g 0rrery
+npm install -g 0rrery    # or: bun install -g 0rrery
 0rrery init
 ```
 
 `init` does three things (each skippable): installs Claude Code hooks (`--no-hooks`), sets up a user service so 0rrery runs persistently (`--no-service`), and imports your existing session history (`--no-import`). Then open **http://localhost:7317**.
 
-Requires [Bun](https://bun.sh) ≥ 1.1. Claude Code hooks require the global install (the hook command is `0rrery hook`); `bunx 0rrery serve` works for a look around without installing.
+Requires [Bun](https://bun.sh) ≥ 1.1 at runtime: the CLI runs on Bun even when installed via npm, so `npm install` succeeds without Bun but the `0rrery` command won't start until Bun is on your PATH. Claude Code hooks require the global install (the hook command is `0rrery hook`); `bunx 0rrery serve` works for a look around without installing.
 
 ## Commands
 
@@ -52,7 +52,7 @@ Versions are published by CI via npm Trusted Publishing: bump the version in `sc
 ## Upgrade
 
 ```
-bun install -g 0rrery@latest
+npm install -g 0rrery@latest    # or: bun install -g 0rrery@latest
 0rrery service uninstall && 0rrery service install   # regenerate if the bin path changed
 ```
 
@@ -62,7 +62,7 @@ After upgrading (or when developing from the repo), rebuild and force a reinstal
 
 ```
 0rrery service uninstall
-bun remove -g 0rrery
+npm uninstall -g 0rrery    # or: bun remove -g 0rrery
 rm -rf ~/.0rrery
 ```
 Hook entries: re-run a Claude session or remove entries whose command is `0rrery hook` from `~/.claude/settings.json`.
