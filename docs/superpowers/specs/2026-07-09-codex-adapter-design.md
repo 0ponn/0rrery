@@ -40,7 +40,7 @@ EOF finalization mirrors the importer's existing behavior: any spans still open 
 
 ### 2. Wiring
 
-- **Tailer**: `startTailer` gains a parser parameter (`(raw, state) => IngestOp[]` + a state factory); `serve` runs TWO tailers — the existing Claude one and a Codex one over `ORRERY_CODEX_DIR ?? ~/.codex/sessions` (recursive glob `**/*.jsonl`, no subagent-dir special case). Offsets share the existing snapshot file (keyed by absolute path — already collision-free).
+- **Tailer**: `startTailer` gains a parser parameter (`(raw, state) => IngestOp[]` + a state factory); `serve` runs TWO tailers — the existing Claude one and a Codex one over `ORRERY_CODEX_DIR ?? ~/.codex/sessions` (recursive glob `**/*.jsonl`, no subagent-dir special case). Offsets share the existing snapshot file (keyed by absolute path — already collision-free). **Amended post-review: shipped as a SEPARATE `codex-offsets.json` — sharing one file was wrong, since `loadOffsets` applies a single revive function to every entry and mixed adapter states would corrupt. Per-adapter offset files are the pattern.**
 - **Import**: `0rrery import <file>` sniffs line 1 — `"type":"session_meta"` → codex parser, else Claude. `import --all` and `init` sweep both roots (each skipped silently if the dir is absent).
 - **Config**: `ORRERY_CODEX_DIR` env + config field, defaulting to `~/.codex/sessions`.
 
