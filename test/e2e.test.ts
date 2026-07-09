@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { startServer, loadConfig } from '@0rrery/server'
@@ -156,5 +156,27 @@ test('re-importing the codex fixture is event-idempotent', async () => {
   await importSession(fixture, srv.url, opts)
   const after = ((await fetch(`${srv.url}/api/sessions/cx1`).then(r => r.json())) as any).events.length
   expect(after).toBe(before)
+  srv.stop()
+})
+
+test('finalize gate: open turn closes on import-finalize, stays open when tailing', async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), '0rrery-e2e-fin-'))
+  const srv = startServer(loadConfig({ port: 0, dbPath: ':memory:', dashboardDist: null, dataDir }))
+  const { importTranscript } = await import('@0rrery/claude-code')
+  const { codexParser, newCodexState } = await import('@0rrery/codex')
+  // a crashed rollout: turn opened, never completed
+  const crashed = join(dataDir, 'crashed.jsonl')
+  writeFileSync(crashed, [
+    JSON.stringify({ timestamp: '2026-07-09T11:00:00.000Z', type: 'session_meta', payload: { session_id: 'crash1', id: 'crash1', cwd: '/home/dev/c' } }),
+    JSON.stringify({ timestamp: '2026-07-09T11:00:01.000Z', type: 'turn_context', payload: { turn_id: 'tc1', cwd: '/home/dev/c', model: 'gpt-5.4' } }),
+  ].join('\n') + '\n')
+  // tailing posture: finalize=false → turn left open
+  await importTranscript(crashed, srv.url, 0, newCodexState(), false, codexParser)
+  let d = await fetch(`${srv.url}/api/sessions/crash1`).then(r => r.json()) as any
+  expect(d.spans.find((s: any) => s.id === 'llm:tc1').ended_at).toBeNull()
+  // import posture: finalize=true → turn closed
+  await importTranscript(crashed, srv.url, 0, newCodexState(), true, codexParser)
+  d = await fetch(`${srv.url}/api/sessions/crash1`).then(r => r.json()) as any
+  expect(d.spans.find((s: any) => s.id === 'llm:tc1').ended_at).not.toBeNull()
   srv.stop()
 })

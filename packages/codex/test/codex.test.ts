@@ -113,6 +113,8 @@ test('subagent-thread event ids are salted with the thread id', () => {
   parseCodexLine(JSON.stringify({ timestamp: '2026-07-09T10:00:00.000Z', type: 'session_meta', payload: { session_id: 'cxm', id: 'thread-42', cwd: '/home/dev/p' } }), state)
   const ops = parseCodexLine(JSON.stringify({ timestamp: '2026-07-09T10:00:01.000Z', type: 'response_item', payload: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'yo' }] } }), state)
   expect((ops[0] as any).id).toBe(`evt:msg:cxm:thread-42:${Date.parse('2026-07-09T10:00:01.000Z')}:assistant`)
+  const stops = parseCodexLine(JSON.stringify({ timestamp: '2026-07-09T10:00:02.000Z', type: 'event_msg', payload: { type: 'task_complete', last_agent_message: 'done' } }), state)
+  expect((stops[0] as any).id).toBe(`evt:stop:cxm:thread-42:${Date.parse('2026-07-09T10:00:02.000Z')}`)
 })
 
 test('codex session.start carries cwd', () => {

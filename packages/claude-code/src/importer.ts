@@ -11,6 +11,7 @@ export type Parser<S> = {
   finalize?: (state: S, maxTs: number) => IngestOp[]
 }
 
+// NOTE: passing claudeParser explicitly to importSession skips subagent-dir discovery (gate is opts.parser === undefined) — omit it for Claude transcripts.
 export const claudeParser: Parser<TranscriptState> = { parse: parseTranscriptLine }
 
 export async function importTranscript<S = TranscriptState>(
