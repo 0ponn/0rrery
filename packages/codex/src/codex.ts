@@ -16,7 +16,7 @@ export function reviveCodexState(json: unknown): CodexState {
   const j = json as any
   const str = (v: unknown) => (typeof v === 'string' ? v : null)
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
-  // any malformed field resets the whole state (parser correctness over partial recovery)
+  // a malformed sessionId invalidates the state; other fields degrade individually
   if (j.sessionId !== null && typeof j.sessionId !== 'string') return fresh
   return {
     sessionId: str(j.sessionId), project: str(j.project), model: str(j.model),
@@ -35,12 +35,13 @@ export function parseCodexLine(raw: string, state: CodexState): IngestOp[] {
   let line: any
   try { line = JSON.parse(raw) } catch { return [] }
   if (typeof line !== 'object' || line === null) return []
-  const ts = Date.parse(line.timestamp) || Date.now()
+  const parsed = Date.parse(line.timestamp)
+  const ts = Number.isNaN(parsed) ? Date.now() : parsed
   const p = line.payload
   if (typeof p !== 'object' || p === null) return []
 
   if (line.type === 'session_meta') {
-    state.sessionId = typeof p.session_id === 'string' ? p.session_id : null
+    state.sessionId = typeof p.session_id === 'string' ? p.session_id : (typeof p.id === 'string' ? p.id : null)
     if (!state.sessionId) return []
     state.project = typeof p.cwd === 'string' ? p.cwd.split('/').pop() ?? null : null
     state.model = typeof p.model_provider === 'string' ? p.model_provider : null

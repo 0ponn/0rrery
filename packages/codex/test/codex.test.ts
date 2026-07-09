@@ -76,6 +76,16 @@ test('garbage, unknown types, and skip-listed lines yield nothing', () => {
   expect(parseCodexLine('{"type":"weird_future_type","payload":{}}', state)).toEqual([])
 })
 
+test('older rollouts with id but no session_id still start a session', () => {
+  const state = newCodexState()
+  const ops = parseCodexLine(JSON.stringify({
+    timestamp: '2026-03-29T12:00:00.000Z', type: 'session_meta',
+    payload: { id: 'old1', cwd: '/home/dev/legacy', originator: 'codex_cli_rs', cli_version: '0.117.0', source: 'cli', model_provider: 'openai' },
+  }), state)
+  expect((ops[0] as any)).toMatchObject({ op: 'session.start', sessionId: 'old1', source: 'codex', project: 'legacy' })
+  expect(state.sessionId).toBe('old1')
+})
+
 test('reviveCodexState round-trips and defaults malformed fields', () => {
   const s = newCodexState()
   s.sessionId = 'cx1'; s.openTurnId = 't1'; s.turnIn = 5
