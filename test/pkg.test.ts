@@ -12,7 +12,7 @@ test('npm pack artifact installs globally and serves the dashboard', async () =>
   const packDest = mkdtempSync(join(tmpdir(), '0rrery-pack-'))
   r = Bun.spawnSync(['npm', 'pack', '--pack-destination', packDest], { cwd: join(root, 'dist-pkg') })
   expect(r.exitCode).toBe(0)
-  const tarball = join(packDest, '0rrery-0.1.1.tgz')
+  const tarball = join(packDest, '0rrery-0.1.2.tgz')
   expect(existsSync(tarball)).toBe(true)
 
   const prefix = mkdtempSync(join(tmpdir(), '0rrery-prefix-'))
@@ -52,3 +52,15 @@ test('npm pack artifact installs globally and serves the dashboard', async () =>
     await proc.exited
   }
 }, 120000)
+
+test('entry fails with a clear message when bun is missing from PATH', () => {
+  // depends on dist-pkg staged by the test above (bun test runs files in order)
+  const entry = join(root, 'dist-pkg', 'index.js')
+  expect(existsSync(entry)).toBe(true)
+  const r = Bun.spawnSync([entry, '--help'], {
+    env: { ...process.env, PATH: '/usr/bin:/bin' },
+    stdout: 'pipe', stderr: 'pipe',
+  })
+  expect(r.exitCode).toBe(1)
+  expect(r.stderr.toString()).toContain('https://bun.sh')
+})

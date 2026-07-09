@@ -11,7 +11,7 @@ npm install -g 0rrery    # or: bun install -g 0rrery
 
 `init` does three things (each skippable): installs Claude Code hooks (`--no-hooks`), sets up a user service so 0rrery runs persistently (`--no-service`), and imports your existing session history (`--no-import`). Then open **http://localhost:7317**.
 
-Requires [Bun](https://bun.sh) ≥ 1.1 at runtime: the CLI runs on Bun even when installed via npm, so `npm install` succeeds without Bun but the `0rrery` command won't start until Bun is on your PATH. Claude Code hooks require the global install (the hook command is `0rrery hook`); `bunx 0rrery serve` works for a look around without installing.
+Requires [Bun](https://bun.sh) ≥ 1.1 at runtime: the CLI runs on Bun even when installed via npm, so `npm install` succeeds without Bun, but the `0rrery` command exits with an install-Bun message until Bun is on your PATH. Claude Code hooks require the global install (the hook command is `0rrery hook`); `bunx 0rrery serve` works for a look around without installing.
 
 ## Commands
 

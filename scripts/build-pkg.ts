@@ -16,10 +16,20 @@ mkdirSync(out, { recursive: true })
 run(['bun', 'run', 'build'], root)  // dashboard vite build
 run(['bun', 'build', 'packages/cli/src/index.ts', '--target', 'bun', '--outfile', join(out, 'index.js')], root)
 
-// ensure executable entry with shebang
+// Executable entry: sh/JS polyglot header. The kernel runs the file under
+// /bin/sh, which checks for bun and execs it (or fails with a clear message);
+// bun reads the same two lines as string statements with trailing comments.
+// A plain `#!/usr/bin/env bun` shebang dies before any code runs when Bun is
+// missing, and npm does not enforce engines.bun at install time.
+const launcher = [
+  '#!/bin/sh',
+  `':' //; command -v bun >/dev/null 2>&1 || { echo "0rrery runs on Bun (>= 1.1), and bun was not found on your PATH." >&2; echo "Install it from https://bun.sh then re-run this command." >&2; exit 1; }`,
+  `':' //; exec bun "$0" "$@"`,
+  '',
+].join('\n')
 const entry = join(out, 'index.js')
 const js = readFileSync(entry, 'utf8')
-if (!js.startsWith('#!')) writeFileSync(entry, '#!/usr/bin/env bun\n' + js)
+writeFileSync(entry, launcher + js.replace(/^#![^\n]*\n/, ''))
 chmodSync(entry, 0o755)
 
 cpSync(join(root, 'packages/dashboard/dist'), join(out, 'public'), { recursive: true })
@@ -28,7 +38,7 @@ cpSync(join(root, 'packages/cli/skill'), join(out, 'skill'), { recursive: true }
 
 writeFileSync(join(out, 'package.json'), JSON.stringify({
   name: '0rrery',
-  version: '0.1.1',
+  version: '0.1.2',
   description: 'Trace-first, local-first observability for AI agent workflows',
   license: 'MIT',
   repository: { type: 'git', url: 'https://github.com/0ponn/0rrery' },
