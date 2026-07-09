@@ -26,6 +26,13 @@
         "@0rrery/server": "workspace:*",
       },
     },
+    "packages/codex": {
+      "name": "@0rrery/codex",
+      "version": "0.1.0",
+      "dependencies": {
+        "@0rrery/schema": "workspace:*",
+      },
+    },
     "packages/dashboard": {
       "name": "@0rrery/dashboard",
       "version": "0.1.0",
@@ -61,6 +68,8 @@
     "@0rrery/claude-code": ["@0rrery/claude-code@workspace:packages/claude-code"],
 
     "@0rrery/cli": ["@0rrery/cli@workspace:packages/cli"],
+
+    "@0rrery/codex": ["@0rrery/codex@workspace:packages/codex"],
 
     "@0rrery/dashboard": ["@0rrery/dashboard@workspace:packages/dashboard"],
 

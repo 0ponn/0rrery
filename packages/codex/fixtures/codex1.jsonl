@@ -1,0 +1,20 @@
+{"timestamp":"2026-07-09T09:59:59.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"pre-meta line must be dropped"}]}}
+{"timestamp":"2026-07-09T10:00:00.000Z","type":"session_meta","payload":{"session_id":"cx1","id":"cx1","timestamp":"2026-07-09T10:00:00.000Z","cwd":"/home/dev/proj-x","originator":"codex_exec","cli_version":"0.142.0","source":"exec","model_provider":"openai"}}
+{"timestamp":"2026-07-09T10:00:01.000Z","type":"turn_context","payload":{"turn_id":"t1","cwd":"/home/dev/proj-x","model":"gpt-5.4","approval_policy":"on-request"}}
+{"timestamp":"2026-07-09T10:00:01.500Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"list the files in this repo"}]}}
+{"timestamp":"2026-07-09T10:00:01.600Z","type":"event_msg","payload":{"type":"user_message","message":"list the files in this repo"}}
+{"timestamp":"2026-07-09T10:00:02.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"ls\",\"workdir\":\"/home/dev/proj-x\"}","call_id":"call_aaa"}}
+{"timestamp":"2026-07-09T10:00:03.000Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call_aaa","output":"Wall time: 0.01 seconds\nProcess exited with code 0\nOutput:\nREADME.md src"}}
+{"timestamp":"2026-07-09T10:00:03.500Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":9000,"output_tokens":400},"last_token_usage":{"input_tokens":1000,"cached_input_tokens":800,"output_tokens":50},"model_context_window":258400},"rate_limits":{}}}
+{"timestamp":"2026-07-09T10:00:04.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Two entries: README.md and src."}]}}
+{"timestamp":"2026-07-09T10:00:04.100Z","type":"event_msg","payload":{"type":"agent_message","message":"Two entries: README.md and src."}}
+{"timestamp":"2026-07-09T10:00:05.000Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"git status\"}","call_id":"call_bbb"}}
+{"timestamp":"2026-07-09T10:00:06.000Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call_bbb","output":"Wall time: 0.00 seconds\nProcess exited with code 128\nOutput:\nfatal: not a git repository"}}
+{"timestamp":"2026-07-09T10:00:07.000Z","type":"response_item","payload":{"type":"web_search_call","id":"ws_123","status":"completed","action":{"type":"search","query":"bun docs"}}}
+{"timestamp":"2026-07-09T10:00:07.500Z","type":"response_item","payload":{"type":"reasoning","summary":[{"type":"summary_text","text":"skipped"}]}}
+{"timestamp":"2026-07-09T10:00:07.600Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{}}}
+{"timestamp":"2026-07-09T10:00:08.000Z","type":"response_item","payload":{"type":"message","role":"developer","content":[{"type":"input_text","text":"skipped role"}]}}
+{"timestamp":"2026-07-09T10:00:09.000Z","type":"turn_context","payload":{"turn_id":"t2","cwd":"/home/dev/proj-x","model":"gpt-5.4"}}
+{"timestamp":"2026-07-09T10:00:10.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":11000,"output_tokens":500},"last_token_usage":{"input_tokens":2000,"output_tokens":100},"model_context_window":258400},"rate_limits":{}}}
+{"timestamp":"2026-07-09T10:00:11.000Z","type":"event_msg","payload":{"type":"task_complete","last_agent_message":"done"}}
+{"timestamp":"2026-07-09T10:00:12.000Z","type":"weird_future_type","payload":{"anything":true}}
