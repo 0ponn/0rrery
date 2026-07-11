@@ -39,6 +39,14 @@ test('span.start accepts kind mcp through the wire schema', () => {
   expect((ok[0] as any).kind).toBe('mcp')
 })
 
+test('session.start accepts source macro (external Rust emitter, ADAPTERS.md rule 6)', () => {
+  const { ok, rejected } = parseOps([
+    { op: 'session.start', sessionId: 'macro:chat:1', source: 'macro', project: 'macro', ts: 1, meta: { feature: 'chat' } },
+  ])
+  expect(rejected).toEqual([])
+  expect((ok[0] as any).source).toBe('macro')
+})
+
 test('kind hook is rejected — removed 2026-07-05, no emission source exists (see remove-hook-kind spec)', () => {
   const { ok, rejected } = parseOps([
     { op: 'span.start', id: 'h1', sessionId: 's1', parentId: null, kind: 'hook', name: 'x', ts: 1, attrs: {} },

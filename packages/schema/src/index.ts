@@ -7,7 +7,7 @@ const ts = z.number().int().nonnegative()
 
 const SessionStartSchema = z.object({
   op: z.literal('session.start'), sessionId: z.string().min(1),
-  source: z.enum(['claude-code', 'api', 'codex']), project: z.string().optional(),
+  source: z.enum(['claude-code', 'api', 'codex', 'macro']), project: z.string().optional(),
   cwd: z.string().optional(), gitBranch: z.string().optional(), ts, meta: attrs,
 }).strict()
 const SessionEndSchema = z.object({ op: z.literal('session.end'), sessionId: z.string().min(1), ts }).strict()
