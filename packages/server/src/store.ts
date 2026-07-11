@@ -58,7 +58,8 @@ export class Store {
              cwd = COALESCE(excluded.cwd, cwd), git_branch = COALESCE(excluded.git_branch, git_branch),
              started_at = MIN(started_at, excluded.started_at),
              last_event_at = MAX(last_event_at, excluded.last_event_at),
-             status = CASE WHEN excluded.last_event_at >= last_event_at THEN 'active' ELSE status END`,
+             status = CASE WHEN excluded.last_event_at >= last_event_at THEN 'active' ELSE status END,
+             meta = CASE WHEN excluded.meta != '{}' THEN excluded.meta ELSE meta END`,
           [op.sessionId, op.source, op.project ?? null, op.cwd ?? null, op.gitBranch ?? null, op.ts, op.ts, JSON.stringify(op.meta ?? {})],
         )
         break

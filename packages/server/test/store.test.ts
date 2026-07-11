@@ -46,6 +46,16 @@ test('span/event for unknown session auto-creates minimal session', () => {
   store.close()
 })
 
+test('late session.start after auto-created session backfills meta and source', () => {
+  const store = new Store(':memory:')
+  store.applyOps([{ op: 'span.start', id: 'sp-race', sessionId: 'raced', kind: 'agent', name: 'send_message', ts: 10 }])
+  store.applyOps([{ op: 'session.start', sessionId: 'raced', source: 'macro', project: 'macro', ts: 5, meta: { feature: 'chat' } }])
+  const s = store.db.query("SELECT * FROM sessions WHERE id='raced'").get() as SessionRow
+  expect(s).toMatchObject({ source: 'macro', project: 'macro', started_at: 5 })
+  expect(JSON.parse(s.meta)).toEqual({ feature: 'chat' })
+  store.close()
+})
+
 test('span.end before span.start creates orphan-tolerant row', () => {
   const store = new Store(':memory:')
   store.applyOps([{ op: 'span.end', id: 'late', ts: 9, status: 'error' }])
