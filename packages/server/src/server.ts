@@ -2,7 +2,7 @@ import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseOps, type IngestOp, type Rejected } from '@0rrery/schema'
 import { Store } from './store'
-import { listSessions, getSessionDetail, getStats, type SessionFilter } from './queries'
+import { listSessions, getSessionDetail, getStats, sessionIntervals, sessionExists, type SessionFilter } from './queries'
 import { spendSeries, toolHealth, projectRollups, sprawlMap, externalSurface, fsFootprint, searchSessions, sessionSummary, fleetView } from './insights'
 import { LiveBus } from './livebus'
 import type { Config } from './config'
@@ -96,6 +96,16 @@ export function startServer(config: Config) {
         if (sm && req.method === 'GET') {
           const s = sessionSummary(store.db, decodeURIComponent(sm[1]))
           return s ? json(s) : json({ error: `session ${decodeURIComponent(sm[1])}: 404` }, 404)
+        }
+
+        const im = path.match(/^\/api\/sessions\/([^/]+)\/intervals$/)
+        if (im && req.method === 'GET') {
+          const id = decodeURIComponent(im[1])
+          const rawGap = url.searchParams.get('gap')
+          const gapMin = numParam(rawGap)
+          if (rawGap !== null && rawGap !== '' && gapMin === undefined) return json({ error: 'invalid gap' }, 400)
+          if (!sessionExists(store.db, id)) return json({ error: `session ${id}: 404` }, 404)
+          return json(sessionIntervals(store.db, id, (gapMin ?? 30) * 60_000))
         }
 
         const m = path.match(/^\/api\/sessions\/([^/]+)$/)

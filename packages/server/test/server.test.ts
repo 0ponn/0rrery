@@ -77,6 +77,29 @@ test('empty from/to params are treated as absent, not epoch-0', async () => {
   srv.stop()
 })
 
+test('session intervals: span timestamps segmented at the 30-min gap', async () => {
+  const srv = boot()
+  await fetch(`${srv.url}/api/ingest`, { method: 'POST', body: JSON.stringify([
+    { op: 'session.start', sessionId: 'iv', source: 'api', project: 'p', ts: 1000 },
+    { op: 'span.start', id: 'a', sessionId: 'iv', kind: 'tool', name: 'Bash', ts: 1000 },
+    { op: 'span.start', id: 'b', sessionId: 'iv', kind: 'tool', name: 'Bash', ts: 301000 },   // +5min: same interval
+    { op: 'span.start', id: 'c', sessionId: 'iv', kind: 'tool', name: 'Bash', ts: 5401000 },  // +90min: new interval
+  ]) })
+  const iv = await (await fetch(`${srv.url}/api/sessions/iv/intervals`)).json()
+  expect(iv).toEqual([
+    { start: 1000, end: 301000, spanCount: 2 },
+    { start: 5401000, end: 5401000, spanCount: 1 },
+  ])
+  // a wider gap merges everything into one interval
+  const one = await (await fetch(`${srv.url}/api/sessions/iv/intervals?gap=120`)).json()
+  expect(one).toHaveLength(1)
+  expect(one[0].spanCount).toBe(3)
+  // unknown session 404s; a malformed gap 400s
+  expect((await fetch(`${srv.url}/api/sessions/nope/intervals`)).status).toBe(404)
+  expect((await fetch(`${srv.url}/api/sessions/iv/intervals?gap=-1`)).status).toBe(400)
+  srv.stop()
+})
+
 test('websocket live delivers ingested ops', async () => {
   const srv = boot()
   const wsUrl = srv.url.replace('http', 'ws') + '/api/live?session=*'

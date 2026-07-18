@@ -58,6 +58,9 @@ export function projectRollups(db: Database, f: InsightFilter): ProjectRollup[] 
   if (f.project) { sConds.push('project = ?'); sParams.push(f.project) }
   if (f.from !== undefined) { sConds.push('last_event_at >= ?'); sParams.push(f.from) }
   if (f.to !== undefined) { sConds.push('started_at <= ?'); sParams.push(f.to) }
+  // wall_ms is idle-inflated (left-open terminals stretch the window across
+  // days) — a coarse rollup only, NOT a time-attribution basis. See 0PO-517 and
+  // GET /api/sessions/<id>/intervals for the honest active-work boundary.
   const sess = db.query(`
     SELECT project, COUNT(*) sessions, SUM(last_event_at - started_at) wall_ms
     FROM sessions WHERE ${sConds.join(' AND ')} GROUP BY project`).all(...sParams) as any[]
