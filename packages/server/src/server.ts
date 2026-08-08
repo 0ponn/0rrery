@@ -1,3 +1,4 @@
+import { reportError } from './observability'
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseOps, type IngestOp, type Rejected } from '@0rrery/schema'
@@ -28,7 +29,7 @@ export function startServer(config: Config) {
   const deadLetter = (rejected: Rejected[]) => {
     if (rejected.length === 0) return
     const lines = rejected.map(r => JSON.stringify({ ts: Date.now(), error: r.error, raw: r.raw })).join('\n') + '\n'
-    try { appendFileSync(join(config.dataDir, 'dead-letter.jsonl'), lines) } catch (e) { console.error('0rrery: dead-letter write failed', e) }
+    try { appendFileSync(join(config.dataDir, 'dead-letter.jsonl'), lines) } catch (e) { reportError(e, { stage: 'deadLetter', rejected: rejected.length }) }
   }
 
   type WsData = { unsub: () => void; session: string }
@@ -130,7 +131,7 @@ export function startServer(config: Config) {
         }
         return json({ error: 'dashboard not built; API only' }, 503)
       } catch (e) {
-        console.error('0rrery: request failed', e)
+        reportError(e, { stage: 'request', route: path })
         return json({ error: 'internal error' }, 500)
       }
     },
