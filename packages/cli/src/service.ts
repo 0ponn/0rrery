@@ -41,10 +41,25 @@ export function servicePath(platform: string = process.platform): string | null 
   return null
 }
 
-export function resolveBin(): string[] {
-  const onPath = Bun.which('0rrery')
-  const entry = onPath ? realpathSync(onPath) : Bun.main
-  return [process.execPath, entry]
+type BinDeps = { which: (name: string) => string | null; main: string; execPath: string }
+
+// Interpreter: bun's PATH entry first. process.execPath is the resolved binary,
+// which under Homebrew is a versioned Cellar path that `brew upgrade` deletes.
+export function resolveBin(
+  deps: BinDeps = { which: n => Bun.which(n), main: Bun.main, execPath: process.execPath },
+): string[] {
+  const onPath = deps.which('0rrery')
+  const entry = onPath ? realpathSync(onPath) : deps.main
+  return [deps.which('bun') ?? deps.execPath, entry]
+}
+
+// macOS folders a launchd agent cannot read without a consent prompt; an agent
+// whose script lives in one starts, then blocks forever without serving.
+export function protectedDir(path: string, home: string = homedir()): string | null {
+  for (const d of ['Documents', 'Desktop', 'Downloads']) {
+    if (path.startsWith(join(home, d) + '/')) return d
+  }
+  return null
 }
 
 function run(argv: string[]): boolean {
@@ -65,6 +80,8 @@ export function runService(
   const linux = platform === 'linux'
   if (sub === 'install') {
     const bin = resolveBin()
+    const guarded = linux ? null : protectedDir(bin[1])
+    if (guarded) console.warn(`warning: ${bin[1]} is under ~/${guarded}; launchd agents cannot read it without a privacy prompt and will hang. Install 0rrery outside ~/${guarded}.`)
     if (!linux && existsSync(file)) exec(['launchctl', 'unload', '-w', file])
     mkdirSync(dirname(file), { recursive: true })
     writeFileSync(file, linux ? systemdUnit([...bin, 'serve'].join(' ')) : launchdPlist([...bin, 'serve']))

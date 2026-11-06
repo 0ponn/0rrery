@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test'
 import { mkdtempSync, writeFileSync, existsSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { systemdUnit, launchdPlist, servicePath, runService, resolveBin } from '../src/service'
+import { systemdUnit, launchdPlist, servicePath, runService, resolveBin, protectedDir } from '../src/service'
 
 test('systemd unit content', () => {
   const u = systemdUnit('/home/dev/.bun/bin/0rrery serve')
@@ -104,6 +104,30 @@ test('resolveBin always names the interpreter absolutely (no shebang/PATH relian
   const bin = resolveBin()
   expect(bin.length).toBe(2)
   expect(bin[0].startsWith('/')).toBe(true)
-  expect(bin[0]).toBe(process.execPath)
   expect(bin[1].startsWith('/')).toBe(true)
+})
+
+test('resolveBin prefers bun from PATH over the versioned execPath', () => {
+  // Homebrew's execPath is /opt/homebrew/Cellar/bun/<ver>/bin/bun, which
+  // `brew upgrade` deletes; the PATH entry is a stable symlink.
+  const deps = {
+    which: (n: string) => (n === 'bun' ? '/opt/homebrew/bin/bun' : null),
+    main: '/Users/dev/node_modules/0rrery/index.js',
+    execPath: '/opt/homebrew/Cellar/bun/1.4.4_1/bin/bun',
+  }
+  expect(resolveBin(deps)).toEqual(['/opt/homebrew/bin/bun', '/Users/dev/node_modules/0rrery/index.js'])
+})
+
+test('resolveBin falls back to execPath when bun is not on PATH', () => {
+  const deps = { which: () => null, main: '/srv/0rrery/index.js', execPath: '/opt/bun/bin/bun' }
+  expect(resolveBin(deps)).toEqual(['/opt/bun/bin/bun', '/srv/0rrery/index.js'])
+})
+
+test('protectedDir flags macOS privacy-protected folders', () => {
+  // A launchd agent whose script lives here blocks on a consent prompt and never serves.
+  expect(protectedDir('/Users/dev/Documents/0pon/0rrery/dist-pkg/index.js', '/Users/dev')).toBe('Documents')
+  expect(protectedDir('/Users/dev/Desktop/x/index.js', '/Users/dev')).toBe('Desktop')
+  expect(protectedDir('/Users/dev/Downloads/index.js', '/Users/dev')).toBe('Downloads')
+  expect(protectedDir('/Users/dev/node_modules/0rrery/index.js', '/Users/dev')).toBeNull()
+  expect(protectedDir('/Users/dev/DocumentsOld/index.js', '/Users/dev')).toBeNull()
 })
